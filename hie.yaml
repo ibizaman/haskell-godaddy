@@ -1,0 +1,11 @@
+cradle:
+    stack:
+        - path: ./test
+          component: "haskell-godaddy:test:haskell-godaddy-test"
+        - path: ./src
+          component: "haskell-godaddy:lib"
+        - path: ./app
+          component: "haskell-godaddy:exe:haskell-godaddy-exe"
+
+dependencies:
+    - package.yaml
