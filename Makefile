@@ -1,22 +1,22 @@
 .PHONY: build test run hoogle-build hoogle-generate hoogle-serve cachix-enable cachix-push
 
 build:
-	nix-shell --pure --run 'stack build'
+	stack --nix build
 
 test:
-	nix-shell --pure --run 'stack test'
+	stack --nix test
 
 run:
-	nix-shell --pure --run 'stack run'
+	stack --nix run
 
 hoogle-build:
-	nix-shell --pure --run 'stack build --haddock --haddock-deps'
+	stack --nix build --haddock --haddock-deps
 
 hoogle-generate:
-	nix-shell --pure --run 'stack hoogle -- generate --quiet --local'
+	stack --nix hoogle -- generate --quiet --local
 
 hoogle-serve:
-	nix-shell --pure --run 'stack hoogle -- server --local --port=65000 --no-security-headers'
+	stack --nix hoogle -- server --local --port=65000 --no-security-headers
 
 cachix-enable:
 	cachix use ibizaman
