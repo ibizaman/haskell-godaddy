@@ -8,3 +8,5 @@
 _cache/
 _site/
 result
+
+*.tar.gz

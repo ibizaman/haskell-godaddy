@@ -27,3 +27,7 @@ cachix-enable:
 cachix-push:
 	nix-build | cachix push ibizaman
 	nix-build shell.nix | cachix push ibizaman
+
+hackage-prepare:
+	nix-shell --run "cabal check" || exit 1
+	stack sdist --tar-dir . --tar-dir .
