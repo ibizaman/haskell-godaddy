@@ -1,10 +1,13 @@
 name: haskell-godaddy
 version: 0.0.0.1
+synopsis: "Command-line interface and library to configure Godaddy domain records"
 github: "ibizaman/haskell-godaddy"
 license: BSD3
+license-file: LICENSE
 author: "Pierre Penninckx"
 maintainer: "ibizapeanut@gmail.com"
 copyright: "2020 Pierre Penninckx"
+category: DNS,Executable,Godaddy
 
 description: Please see the README on GitHub at <https://github.com/ibizaman/haskell-godaddy#readme>
 
