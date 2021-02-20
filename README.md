@@ -242,3 +242,30 @@ Or
 ```bash
 stack --nix build
 ```
+
+# Use the Godaddy Test OTE Endpoint
+
+Set the following environment variable:
+
+```bash
+GODADDY_TEST_ENDPOINT=true
+```
+
+And then do requests using this executable.
+
+# Introspect API Calls
+
+You can also use a custom 'SC.BaseUrl', for example to intercept
+calls to Godaddy with mitmproxy. Start mitmproxy with:
+
+```bash
+mitmproxy --mode reverse:https://api.godaddy.com
+```
+
+Set the following environment variable:
+
+```bash
+GODADDY_CUSTOM_ENDPOINT=127.0.0.1:8080
+```
+
+And then do requests using this executable.

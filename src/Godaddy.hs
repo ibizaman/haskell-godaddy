@@ -8,20 +8,62 @@
 {-# LANGUAGE TypeOperators #-}
 
 -- |
+-- Module  : Godaddy
+-- Description : Call Godaddy API through servant functions
+--
+-- The `Godaddy` module provides access to the Godaddy API through a
+-- 'Servant' type and 'Servant.Client' functions.
+--
+-- The following snippet shows how to set the Servant 'Servant.Client'
+-- up.
+--
+-- > import Data.Either.Combinators (mapLeft)
+-- > import qualified Godaddy
+-- > import Network.HTTP.Client.TLS (newTlsManager)
+-- > import qualified Servant.Client as SC
+-- >
+-- > run :: SC.BaseUrl -> SC.ClientM a -> IO (Either Godaddy.Error a)
+-- > run endpoint query = do
+-- >   manager' <- newTlsManager
+-- >   mapLeft Godaddy.parseError
+-- >     <$> SC.runClientM query (SC.mkClientEnv manager' endpoint)
+--
+-- The following snippet shows how to make queries thanks to the run
+-- function we just defined above.
+--
+-- > endpoint :: SC.BaseUrl
+-- > endpoint = Godaddy.defaultBaseUrl
+-- >
+-- > apiKey :: Godaddy.APIKey
+-- > apiKey = Godaddy.APIKey "KEY" "SECRET"
+-- >
+-- > getDomainsQuery :: Godaddy.APIKey -> SC.ClientM [Godaddy.Domain]
+-- > getDomainsQuery apiKey = do
+-- >   let Godaddy.Client {..} = Godaddy.mkClient apiKey
+-- >   getDomains
+-- >
+-- > main :: IO ()
+-- > main = run endpoint (getDomainsQuery apiKey)
 module Godaddy
-  ( Godaddy (..),
+  ( -- * Setup API
+    defaultBaseUrl,
+    testBaseUrl,
     APIKey (..),
-    APIType (..),
-    DomainId (..),
-    Domain (..),
-    Record (..),
-    RecordType (..),
-    mkBaseUrl,
+
+    -- * Client functions to call the Godaddy API
+
+    -- | https://developer.godaddy.com/getstarted
+    mkClient,
     Client (..),
     DomainClient (..),
     RecordsTypeClient (..),
     RecordsTypeNameClient (..),
-    mkClient,
+    DomainId (..),
+    Domain (..),
+    Record (..),
+    RecordType (..),
+
+    -- * Interpret Error from Godaddy
     parseError,
     Error (..),
     Status (..),
@@ -52,22 +94,29 @@ import Servant ((:<|>) (..), (:>))
 import qualified Servant as S
 import qualified Servant.Client as SC
 
-data APIKey = APIKey Text Text
-
-newtype Godaddy = Godaddy
-  { apiKey :: APIKey
+-- | The API key to connect to Godaddy. Remember, the secret should
+-- stay secret, don't save it not encrypted to disk.
+data APIKey = APIKey
+  { -- | The "key" part of the API key.
+    key :: Text,
+    -- | The "secret" part of the API key.
+    secret :: Text
   }
 
+-- | Represent the APIKey as the header "sso-key KEY:SECRET". This is
+-- transparent when using a servant 'Servant.Client'.
 instance S.ToHttpApiData APIKey where
   toUrlPiece (APIKey key secret) = "sso-key " <> key <> ":" <> secret
 
-data APIType = Prod | Test | Debug String Int
+-- | Default 'SC.BaseUrl' for the prod Godaddy endpoint "api.godaddy.com".
+defaultBaseUrl :: SC.BaseUrl
+defaultBaseUrl = SC.BaseUrl SC.Https "api.godaddy.com" 443 ""
 
-mkBaseUrl :: APIType -> SC.BaseUrl
-mkBaseUrl Prod = SC.BaseUrl SC.Https "api.godaddy.com" 443 ""
-mkBaseUrl Test = SC.BaseUrl SC.Https "api.ote-godaddy.com" 443 ""
-mkBaseUrl (Debug host port) = SC.BaseUrl SC.Http host port ""
+-- | 'SC.BaseUrl' for the test Godaddy endpoint "api.ote-godaddy.com".
+testBaseUrl :: SC.BaseUrl
+testBaseUrl = SC.BaseUrl SC.Https "api.ote-godaddy.com" 443 ""
 
+-- | The Domain ID of a Godaddy domain.
 newtype DomainId = DomainId Int
   deriving (Generic)
 
@@ -79,12 +128,19 @@ instance S.ToHttpApiData DomainId where
 
 instance FromJSON DomainId
 
+-- | A Godaddy domain.
 data Domain = Domain
-  { createdAt :: UTCTime,
+  { -- | Domain created at date.
+    createdAt :: UTCTime,
+    -- | Domain name.
     domain :: Text,
+    -- | Domain ID.
     domainId :: DomainId,
+    -- | If the domain is renewed automatically.
     renewAuto :: Bool,
+    -- | The renewal deadline.
     renewDeadline :: Maybe UTCTime,
+    -- | Domain status.
     status :: Text
   }
   deriving (Show, Generic)
@@ -104,8 +160,10 @@ instance HR.HumanReadable [Domain] where
   name _ = "Domains:"
   body domains = map HR.printForHumans domains
 
+-- | A Godaddy record.
 data Record = Record
-  { recordData :: Text,
+  { -- | Either an IP or a domain name.
+    recordData :: Text,
     recordName :: Text,
     recordPort :: Maybe Int,
     recordPriority :: Maybe Int,
@@ -174,8 +232,13 @@ instance S.ToHttpApiData RecordType where
   toUrlPiece SRV = "SRV"
   toUrlPiece TXT = "TXT"
 
+-- | Top-level queries. Use the 'mkDomainClient' function to access
+-- domain-level functions.
 data Client = Client
-  { getDomains :: SC.ClientM [Domain],
+  { -- | Get all domains
+    getDomains :: SC.ClientM [Domain],
+    -- | Return a 'DomainClient' object making requests for the given
+    -- domain.
     mkDomainClient :: Text -> DomainClient
   }
 
@@ -188,11 +251,20 @@ type DomainsAPI =
            :<|> DomainAPI
        )
 
+-- | Queries for a domain. 'mkDomainClient' returns this object. Use
+-- the 'mkRecordsWithTypeClient' function to access functions
+-- operating on all records of a given 'RecordType'.
 data DomainClient = DomainClient
-  { getDomain :: SC.ClientM Domain,
+  { -- | Get information about the domain.
+    getDomain :: SC.ClientM Domain,
+    -- | Get all records from a domain.
     getRecords :: SC.ClientM [Record],
+    -- | Add records to a domain. Fails if the records are duplicate.
     addRecords :: [Record] -> SC.ClientM S.NoContent,
+    -- | Replace records of a domain by the given ones.
     replaceRecords :: [Record] -> SC.ClientM S.NoContent,
+    -- | Return a 'RecordsTypeClient' object making requests for the
+    -- records of a given 'RecordType'.
     mkRecordsWithTypeClient :: RecordType -> RecordsTypeClient
   }
 
@@ -210,10 +282,19 @@ type RecordsAPI =
            :<|> RecordsTypeAPI
        )
 
+-- | Queries for all records of a given domain and 'RecordType'.
+-- 'mkRecordsWithTypeClient' returns this object. Use the
+-- 'mkRecordsWithTypeNameClient' function to access functions
+-- operating on all records of a given type and a given name.
 data RecordsTypeClient = RecordsTypeClient
-  { getRecordsWithType :: SC.ClientM [Record],
+  { -- | Get all records of the given 'RecordType'.
+    getRecordsWithType :: SC.ClientM [Record],
+    -- | Replace all records of the given 'RecordType' with those given.
     replaceRecordsWithType :: [Record] -> SC.ClientM S.NoContent,
+    -- | Delete all records of the given 'RecordType'.
     deleteRecordsWithType :: SC.ClientM S.NoContent,
+    -- | Return a 'RecordsTypeNameClient' object making request for
+    -- the records of a given 'RecordType' and a given name.
     mkRecordsWithTypeNameClient :: Text -> RecordsTypeNameClient
   }
 
@@ -224,9 +305,14 @@ type RecordsTypeAPI =
            :<|> RecordsTypeNameAPI
        )
 
+-- | Queries for all records of a given domain, 'RecordType' and name.
+-- 'mkRecordsWithTypeNameClient' returns this object.
 data RecordsTypeNameClient = RecordsTypeNameClient
-  { getRecordsWithTypeName :: SC.ClientM [Record],
+  { -- | Get all records of the given 'RecordType' and name.
+    getRecordsWithTypeName :: SC.ClientM [Record],
+    -- | Replace all records of the given 'RecordType' and name with those given.
     replaceRecordsWithTypeName :: [Record] -> SC.ClientM S.NoContent,
+    -- | Delete all records of the given 'RecordType' and name.
     deleteRecordsWithTypeName :: SC.ClientM S.NoContent
   }
 
@@ -236,6 +322,17 @@ type RecordsTypeNameAPI =
            :<|> S.ReqBody '[S.JSON] [Record] :> S.Put '[S.JSON] S.NoContent
        )
 
+-- | Return a convenience 'Client' object containing functions to call the Godaddy API.
+--
+-- Example usage:
+--
+-- > {-# LANGUAGE RecordWildCards #-}
+-- >
+-- > getRecordsQuery :: APIKey -> Text -> SC.ClientM [Record]
+-- > getRecordsQuery apiKey domain = do
+-- >   let Client {..} = mkClient apiKey
+-- >       DomainClient {..} = mkDomainClient domain
+-- >   getRecords
 mkClient :: APIKey -> Client
 mkClient apiKey = Client {..}
   where
@@ -265,25 +362,36 @@ mkClient apiKey = Client {..}
                 removeRecordsWithNameType :: Text -> RecordType -> [Record] -> [Record]
                 removeRecordsWithNameType delName delRecordType = filter (\Record {recordName, recordType = rt} -> recordName /= delName || rt /= delRecordType)
 
+-- | The error returned by Godaddy.
 data Error
-  = Error Status GodaddyError
-  | DecodeError Status String String
-  | OtherError Status String
-  | ConnectionError String
+  = -- | An error returned by Godaddy. For example for a missing field
+    -- or an invalid IP field.
+    Error Status GodaddyError
+  | -- | A request or response could not be decoded.
+    DecodeError Status String String
+  | -- | An unexpected error.
+    OtherError Status String
+  | -- | A network error.
+    ConnectionError String
   deriving (Generic, Show)
 
 instance FromJSON Error
 
+-- | Status of an API call.
 data Status = Status
   {statusCode :: Int, statusMessage :: String}
   deriving (Generic, Show)
 
 instance FromJSON Status
 
+-- | An error returned by Godaddy if a request is invalid. For example
+-- for a missing field or an invalid IP field.
 data GodaddyError = GodaddyError
   { errorCode :: String,
+    -- | The fields which produced an error.
     errorFields :: [ErrorField],
     errorMessage :: String,
+    -- | In case of rate limiting by Godaddy.
     errorRetryAfterSec :: Maybe Int
   }
   deriving (Generic, Show)
@@ -312,6 +420,7 @@ instance FromJSON ErrorField where
           }
       )
 
+-- | Parse JSON error coming from Godaddy.
 parseError :: SC.ClientError -> Error
 parseError clientError =
   case clientError of

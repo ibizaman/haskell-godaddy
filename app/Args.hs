@@ -17,6 +17,7 @@ import Options.Applicative
   )
 import qualified Options.Applicative as Opts
 import qualified Options.Applicative.Help.Pretty as P
+import qualified Utils
 
 newtype Args = DomainSubcommand Domains
 
@@ -70,16 +71,13 @@ serversParser =
             <*> subdomainsParser
         )
   where
-    -- Parse "MY:SERVER:IP" into ("MY:SERVER", "IP").
-    parseServerIP :: String -> Either String (String, String)
-    parseServerIP string =
-      (\index -> drop 1 <$> List.splitAt index string)
-        <$> lastEither (List.elemIndices ':' string)
+    parseServerIP =
+      maybeToEither "expected format is SERVER:IP"
+        . Utils.splitStringOnLastChar ':'
 
-    lastEither :: [a] -> Either String a
-    lastEither [] = Left "expected format is SERVER:IP"
-    lastEither [x] = Right x
-    lastEither (_ : xs) = lastEither xs
+    maybeToEither :: a -> Maybe b -> Either a b
+    maybeToEither _ (Just b) = Right b
+    maybeToEither a Nothing = Left a
 
 subdomainsParser :: Opts.Parser Subdomains
 subdomainsParser =

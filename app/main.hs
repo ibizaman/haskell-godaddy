@@ -31,17 +31,24 @@ main = do
         Left err -> putStrLn err
         Right Env.Vars {..} -> do
           let apiKey = Godaddy.APIKey godaddyApiKey godaddyApiSecret
-          domainArgs apiKey a
+          let endpoint = case (godaddyTestEndpoint, godaddyCustomEndpoint) of
+                (False, Just custom) -> Env.unEndpoint custom
+                (True, _) -> Godaddy.testBaseUrl
+                _ -> Godaddy.defaultBaseUrl
+          domainArgs endpoint apiKey a
   where
-    domainArgs apiKey Args.DomainsList = run (getDomainsQuery apiKey) >>= display
-    domainArgs apiKey (Args.Domain domain s) = serverArgs apiKey domain s
+    domainArgs endpoint apiKey Args.DomainsList =
+      run endpoint (getDomainsQuery apiKey) >>= display
+    domainArgs endpoint apiKey (Args.Domain domain s) =
+      serverArgs endpoint apiKey domain s
 
-    serverArgs apiKey domain Args.ServersList =
-      run (getRecordsWithTypeQuery apiKey domain Godaddy.A) >>= display
-    serverArgs apiKey domain Args.AllRecords =
-      run (getRecordsQuery apiKey domain) >>= display
-    serverArgs apiKey domain (Args.ServerAdd server ip) =
+    serverArgs endpoint apiKey domain Args.ServersList =
+      run endpoint (getRecordsWithTypeQuery apiKey domain Godaddy.A) >>= display
+    serverArgs endpoint apiKey domain Args.AllRecords =
+      run endpoint (getRecordsQuery apiKey domain) >>= display
+    serverArgs endpoint apiKey domain (Args.ServerAdd server ip) =
       run
+        endpoint
         ( addRecordsQuery
             apiKey
             domain
@@ -59,12 +66,13 @@ main = do
             ]
         )
         >>= displayErr
-    serverArgs apiKey domain (Args.ServerDelete server) =
-      run (deleteRecordsWithTypeNameQuery apiKey domain Godaddy.A server)
+    serverArgs endpoint apiKey domain (Args.ServerDelete server) =
+      run endpoint (deleteRecordsWithTypeNameQuery apiKey domain Godaddy.A server)
         >>= displayErr
-    serverArgs apiKey domain (Args.ServerReplace server ip) =
-      run (deleteRecordsWithTypeNameQuery apiKey domain Godaddy.A server)
+    serverArgs endpoint apiKey domain (Args.ServerReplace server ip) =
+      run endpoint (deleteRecordsWithTypeNameQuery apiKey domain Godaddy.A server)
         >> run
+          endpoint
           ( addRecordsQuery
               apiKey
               domain
@@ -82,19 +90,19 @@ main = do
               ]
           )
         >>= displayErr
-    serverArgs apiKey domain (Args.Server server sd) =
-      subdomainArgs apiKey domain server sd
+    serverArgs endpoint apiKey domain (Args.Server server sd) =
+      subdomainArgs endpoint apiKey domain server sd
 
-    subdomainArgs apiKey domain server Args.SubdomainsList =
-      run (getRecordsWithTypeQuery apiKey domain Godaddy.CNAME)
+    subdomainArgs endpoint apiKey domain server Args.SubdomainsList =
+      run endpoint (getRecordsWithTypeQuery apiKey domain Godaddy.CNAME)
         >>= display
-          . fmap
-            (filterRecordsByDataPrefix server)
-    subdomainArgs apiKey domain server (Args.SubdomainAdd subdomain) =
+          . fmap (filterRecordsByDataPrefix server)
+    subdomainArgs endpoint apiKey domain server (Args.SubdomainAdd subdomain) =
       let serverName = case server of
             "@" -> "@"
             s -> s <> "." <> domain
        in run
+            endpoint
             ( addRecordsQuery
                 apiKey
                 domain
@@ -112,8 +120,10 @@ main = do
                 ]
             )
             >>= displayErr
-    subdomainArgs apiKey domain _server (Args.SubdomainDelete subdomain) =
-      run (deleteRecordsWithTypeNameQuery apiKey domain Godaddy.CNAME subdomain)
+    subdomainArgs endpoint apiKey domain _server (Args.SubdomainDelete subdomain) =
+      run
+        endpoint
+        (deleteRecordsWithTypeNameQuery apiKey domain Godaddy.CNAME subdomain)
         >>= displayErr
 
 getDomainsQuery :: Godaddy.APIKey -> SC.ClientM [Godaddy.Domain]
@@ -159,16 +169,11 @@ deleteRecordsWithTypeNameQuery apiKey domain recordType name = do
       Godaddy.RecordsTypeNameClient {..} = mkRecordsWithTypeNameClient name
   deleteRecordsWithTypeName
 
-run :: SC.ClientM a -> IO (Either Godaddy.Error a)
-run query = do
+run :: SC.BaseUrl -> SC.ClientM a -> IO (Either Godaddy.Error a)
+run endpoint query = do
   manager' <- newTlsManager
   mapLeft Godaddy.parseError
-    <$> SC.runClientM
-      query
-      ( SC.mkClientEnv
-          manager'
-          (Godaddy.mkBaseUrl $ Godaddy.Debug "127.0.0.1" 8080)
-      )
+    <$> SC.runClientM query (SC.mkClientEnv manager' endpoint)
 
 displayErr :: Either Godaddy.Error a -> IO ()
 displayErr (Right _) = return ()
