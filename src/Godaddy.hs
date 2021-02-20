@@ -320,21 +320,12 @@ parseError clientError =
           s = Status statusCode $ show statusMessage
        in either (DecodeError s $ show responseBody) (Error s) p
     SC.DecodeFailure failure SC.Response {responseStatusCode = HTTPTypes.Status statusCode statusMessage, responseBody} ->
-      -- let p = Aeson.eitherDecode responseBody
-      --     s = Status statusCode $ show statusMessage
-      --  in either (DecodeError s $ "2" <> show responseBody) (DecodeError s $ T.unpack failure) p
       let s = Status statusCode $ show statusMessage
        in DecodeError s (T.unpack failure) $ show responseBody
     SC.UnsupportedContentType mediaType SC.Response {responseStatusCode = HTTPTypes.Status statusCode statusMessage, responseBody} ->
-      -- let p = Aeson.eitherDecode responseBody
-      --     s = Status statusCode $ show statusMessage
-      --  in either (DecodeError s $ "3" <> show responseBody) (\x -> OtherError s $ "unsupported media type: \"" <> show mediaType <> "\": " <> x) p
       let s = Status statusCode $ show statusMessage
        in OtherError s $ "unsupported media type: \"" <> show mediaType <> "\", reponse body: " <> show responseBody
     SC.InvalidContentTypeHeader SC.Response {responseStatusCode = HTTPTypes.Status statusCode statusMessage, responseBody} ->
-      -- let p = Aeson.eitherDecode responseBody
-      --     s = Status statusCode $ show statusMessage
-      --  in either (DecodeError s $ "4" <> show responseBody) (OtherError s) p
       let s = Status statusCode $ show statusMessage
        in OtherError s $ show responseBody
     SC.ConnectionError exception ->
