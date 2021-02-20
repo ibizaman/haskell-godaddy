@@ -57,6 +57,7 @@ in
       project
     ];
     buildInputs = with shellHaskellPackages; [
+      Cabal
       stack
       haskell-language-server
     ];

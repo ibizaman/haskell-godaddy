@@ -1,7 +1,10 @@
-.PHONY: build test run hoogle-build hoogle-generate hoogle-serve cachix-enable cachix-push
+.PHONY: build build-release test run hoogle-build hoogle-generate hoogle-serve cachix-enable cachix-push
 
 build:
 	stack --nix build
+
+build-release:
+	nix-build
 
 test:
 	stack --nix test

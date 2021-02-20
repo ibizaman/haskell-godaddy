@@ -11,14 +11,14 @@ description: Please see the README on GitHub at <https://github.com/ibizaman/has
 dependencies:
     # base must match what comes with ghc
     - base == 4.12.0.0
-    - aeson
-    - http-client
-    - http-client-tls
-    - http-types
-    - text == 1.2.3.1
-    - time
-    - servant-server
-    - servant-client
+    - aeson == 1.5.*
+    - http-client == 0.6.*
+    - http-client-tls == 0.3.5.*
+    - http-types == 0.12.*
+    - text == 1.2.*
+    - time == 1.8.*
+    - servant-server == 0.18.*
+    - servant-client == 0.18.*
 
 default-extensions:
     - OverloadedStrings
@@ -33,8 +33,8 @@ executables:
         source-dirs: app
         dependencies:
             - haskell-godaddy
-            - envy
-            - optparse-applicative
+            - envy == 2.1.*
+            - optparse-applicative == 0.15.*
         ghc-options:
             - -rtsopts
             - -threaded
@@ -46,9 +46,9 @@ tests:
         source-dirs: test
         dependencies:
             - haskell-godaddy
-            - hspec
-            - hspec-core
-            - hspec-discover
+            - hspec == 2.7.*
+            - hspec-core == 2.7.*
+            - hspec-discover == 2.7.*
         ghc-options:
             - -rtsopts
             - -threaded
