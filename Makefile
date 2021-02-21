@@ -5,6 +5,10 @@ build:
 
 build-release:
 	nix-build
+	cp result/bin/haskell-godaddy-exe godaddy
+	chmod 755 godaddy
+	patchelf --set-interpreter /lib/ld-linux-x86-64.so.2 godaddy
+	patchelf --set-rpath /lib godaddy
 
 test:
 	stack --nix test
