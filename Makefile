@@ -1,4 +1,4 @@
-.PHONY: build build-release test run hoogle-build hoogle-generate hoogle-serve cachix-enable cachix-push
+.PHONY: aur build build-release test run hoogle-build hoogle-generate hoogle-serve cachix-enable cachix-push
 
 build:
 	stack --nix build
@@ -31,3 +31,10 @@ cachix-push:
 hackage-prepare:
 	nix-shell --run "cabal check" || exit 1
 	stack sdist --tar-dir . --tar-dir .
+
+
+aur:
+	cd aur && ./update-aur.sh
+
+aur-push:
+	git submodule foreach 'git push'
