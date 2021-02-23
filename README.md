@@ -219,6 +219,12 @@ Deleting a nonexistent record does not produce an error.
 
 # Installation
 
+## Archlinux
+
+```bash
+yay -S haskell-godaddy
+```
+
 ## From Source
 
 Both options will produce an executable where the linker is in
