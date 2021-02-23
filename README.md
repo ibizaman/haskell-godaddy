@@ -226,12 +226,22 @@ line argument `--credentials`, an environment variable
 `GODADDY_API_CREDENTIALS` or a configuration file.
 
 
-# Configuraion File
+# Configuration File
 
 The binary searches for a configuration file named `godaddy.conf`
 either in the current directory or in `/etc/godaddy/`. If the
 `--config=FILEPATH` argument is given, it will search instead in the
 given location.
+
+The configuration file contains the following:
+
+```
+[CREDENTIALS]
+apikey="KEY"
+apisecret="SECRET"
+```
+
+It must contain a trailing newline.
 
 
 # Installation
