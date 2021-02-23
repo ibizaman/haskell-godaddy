@@ -1,4 +1,4 @@
-.PHONY: aur build build-release test run hoogle-build hoogle-generate hoogle-serve cachix-enable cachix-push
+.PHONY: aur aur-push aur-make build build-release test run hoogle-build hoogle-generate hoogle-serve cachix-enable cachix-push
 
 build:
 	stack --nix build
@@ -42,3 +42,6 @@ aur:
 
 aur-push:
 	git submodule foreach 'git push'
+
+aur-make:
+	cd aur && rm godaddy.zip && makepkg -f
