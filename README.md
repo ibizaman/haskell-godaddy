@@ -221,7 +221,9 @@ Deleting a nonexistent record does not produce an error.
 
 ## From Source
 
-For now, that's all there is.
+Both options will produce an executable where the linker is in
+/nix/store. Use the `build-release` Makefile target to produce an
+executable linked to the default linux linker.
 
 ### Using Nix
 
