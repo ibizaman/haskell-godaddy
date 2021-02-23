@@ -49,6 +49,8 @@ module Godaddy
     defaultBaseUrl,
     testBaseUrl,
     APIKey (..),
+    parseApiKey,
+    printApiKey,
 
     -- * Client functions to call the Godaddy API
 
@@ -81,6 +83,7 @@ import Data.Aeson
     genericToJSON,
   )
 import qualified Data.Aeson as Aeson
+import Data.Bifunctor (Bifunctor (bimap))
 import Data.Char (toLower)
 import Data.Maybe (catMaybes)
 import Data.Proxy (Proxy (Proxy))
@@ -93,6 +96,7 @@ import qualified Network.HTTP.Types as HTTPTypes
 import Servant ((:<|>) (..), (:>))
 import qualified Servant as S
 import qualified Servant.Client as SC
+import qualified Utils
 
 -- | The API key to connect to Godaddy. Remember, the secret should
 -- stay secret, don't save it not encrypted to disk.
@@ -102,6 +106,14 @@ data APIKey = APIKey
     -- | The "secret" part of the API key.
     secret :: Text
   }
+
+-- | Parses a "KEY:SECRET" string to an APIKey.
+parseApiKey :: String -> Maybe APIKey
+parseApiKey = fmap (uncurry Godaddy.APIKey . bimap T.pack T.pack) . Utils.splitStringOnLastChar ':'
+
+-- | Prints an APIKey in the "KEY:SECRET" format.
+printApiKey :: APIKey -> String
+printApiKey APIKey {..} = T.unpack $ key <> ":" <> secret
 
 -- | Represent the APIKey as the header "sso-key KEY:SECRET". This is
 -- transparent when using a servant 'Servant.Client'.
@@ -389,7 +401,7 @@ instance FromJSON Status
 data GodaddyError = GodaddyError
   { errorCode :: String,
     -- | The fields which produced an error.
-    errorFields :: [ErrorField],
+    errorFields :: Maybe [ErrorField],
     errorMessage :: String,
     -- | In case of rate limiting by Godaddy.
     errorRetryAfterSec :: Maybe Int

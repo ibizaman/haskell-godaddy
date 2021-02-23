@@ -8,7 +8,10 @@ module Main
 where
 
 import qualified Args
+import qualified ConfigFile
+import Control.Applicative (Alternative ((<|>)))
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Text
   ( Text,
     isPrefixOf,
@@ -25,17 +28,20 @@ import qualified Servant.Client as SC
 
 main :: IO ()
 main = do
-  Args.getArgs >>= \case
-    Args.DomainSubcommand a ->
-      Env.getVars >>= \case
-        Left err -> putStrLn err
-        Right Env.Vars {..} -> do
-          let apiKey = Godaddy.APIKey godaddyApiKey godaddyApiSecret
-          let endpoint = case (godaddyTestEndpoint, godaddyCustomEndpoint) of
-                (False, Just custom) -> Env.unEndpoint custom
-                (True, _) -> Godaddy.testBaseUrl
-                _ -> Godaddy.defaultBaseUrl
-          domainArgs endpoint apiKey a
+  Args.getArgs >>= \args -> do
+    env <- Env.getEnv
+    configFile <-
+      eitherToMaybe
+        <$> ConfigFile.parse
+          (maybe ConfigFile.defaultConfigFiles (:| []) $ Args.configFile args)
+    let apiKey =
+          Args.credentials args
+            <|> Env.apiKey env
+            <|> (ConfigFile.apiKey <$> configFile)
+    let endpoint = Env.endpoint env
+    case apiKey of
+      Nothing -> putStrLn "Please set the Godaddy API credentials."
+      Just apiKey' -> domainArgs endpoint apiKey' (Args.domainSubcommand args)
   where
     domainArgs endpoint apiKey Args.DomainsList =
       run endpoint (getDomainsQuery apiKey) >>= display
@@ -193,8 +199,7 @@ displayErr (Left err) = case err of
           <> errorCode
           <> "] "
           <> errorMessage
-          <> ":\n"
-          <> printFields errorFields
+          <> maybe "" (\e' -> ":\n" <> printFields e') errorFields
 
       printFields :: [Godaddy.ErrorField] -> String
       printFields = List.intercalate "\n" . map printField
@@ -230,3 +235,7 @@ display (Right x) = putStrLn $ printForHumans x
 mapLeft :: (a -> b) -> Either a c -> Either b c
 mapLeft f (Left a) = Left $ f a
 mapLeft _ (Right b) = Right b
+
+eitherToMaybe :: Either a b -> Maybe b
+eitherToMaybe (Left _) = Nothing
+eitherToMaybe (Right b) = Just b

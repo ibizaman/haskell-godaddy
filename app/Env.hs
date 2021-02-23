@@ -1,28 +1,28 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 
 -- |
 module Env
-  ( Vars (..),
-    Endpoint (..),
-    getVars,
+  ( Env,
+    apiKey,
+    endpoint,
+    APIKey (..),
+    getEnv,
   )
 where
 
-import Data.Text (Text)
 import GHC.Generics (Generic)
+import qualified Godaddy
 import qualified Servant.Client as SC
 import qualified System.Envy as Envy
 
-data Vars = Vars
-  { godaddyApiKey :: Text,
-    godaddyApiSecret :: Text,
+data Env = Env
+  { godaddyApiCredentials :: Maybe APIKey,
     godaddyCustomEndpoint :: Maybe Endpoint,
     godaddyTestEndpoint :: Bool
   }
   deriving (Generic)
 
-instance Envy.FromEnv Vars
+instance Envy.FromEnv Env
 
 newtype Endpoint = Endpoint {unEndpoint :: SC.BaseUrl}
 
@@ -30,14 +30,20 @@ instance Envy.Var Endpoint where
   toVar = SC.showBaseUrl . unEndpoint
   fromVar = fmap Endpoint . SC.parseBaseUrl
 
-getVars :: IO (Either String Vars)
-getVars = f <$> Envy.decodeWithDefaults (Vars "" "" Nothing False)
-  where
-    -- We set the error message ourselves because the default error
-    -- message is not clear.
-    f = \case
-      (Vars "" _ _ _) ->
-        Left "Please set the GODADDY_API_KEY environment variable."
-      (Vars _ "" _ _) ->
-        Left "Please set the GODADDY_API_SECRET environment variable."
-      v -> Right v
+newtype APIKey = APIKey {unAPIKey :: Godaddy.APIKey}
+
+instance Envy.Var APIKey where
+  toVar = Godaddy.printApiKey . unAPIKey
+  fromVar = fmap APIKey . Godaddy.parseApiKey
+
+getEnv :: IO Env
+getEnv = Envy.decodeWithDefaults (Env Nothing Nothing False)
+
+endpoint :: Env -> SC.BaseUrl
+endpoint env = case (godaddyTestEndpoint env, godaddyCustomEndpoint env) of
+  (False, Just custom) -> Env.unEndpoint custom
+  (True, _) -> Godaddy.testBaseUrl
+  _ -> Godaddy.defaultBaseUrl
+
+apiKey :: Env -> Maybe Godaddy.APIKey
+apiKey = fmap unAPIKey . godaddyApiCredentials

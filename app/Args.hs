@@ -11,6 +11,7 @@ where
 import qualified Data.List as List
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Godaddy
 import Options.Applicative
   ( Alternative ((<|>)),
     (<**>),
@@ -19,7 +20,11 @@ import qualified Options.Applicative as Opts
 import qualified Options.Applicative.Help.Pretty as P
 import qualified Utils
 
-newtype Args = DomainSubcommand Domains
+data Args = Args
+  { configFile :: Maybe Text,
+    credentials :: Maybe Godaddy.APIKey,
+    domainSubcommand :: Domains
+  }
 
 data Domains
   = DomainsList
@@ -39,7 +44,21 @@ data Subdomains
   | SubdomainDelete Text
 
 argsParser :: Opts.Parser Args
-argsParser = DomainSubcommand <$> domainsParser
+argsParser = Args <$> configFileParser <*> credentialsParser <*> domainsParser
+
+configFileParser :: Opts.Parser (Maybe Text)
+configFileParser =
+  Opts.optional $
+    Opts.option
+      Opts.str
+      (Opts.long "config" <> Opts.metavar "CONFIGFILE" <> Opts.showDefault)
+
+credentialsParser :: Opts.Parser (Maybe Godaddy.APIKey)
+credentialsParser =
+  Opts.optional $
+    Opts.option
+      (Opts.maybeReader Godaddy.parseApiKey)
+      (Opts.long "credentials" <> Opts.metavar "KEY:SECRET")
 
 domainsParser :: Opts.Parser Domains
 domainsParser =
@@ -101,11 +120,13 @@ getArgs = Opts.execParser opts
                   mintercalate
                     (P.hardline <> P.hardline)
                     [ "godaddy allows you to create and delete A records and CNAME records.",
-                      "All commands require the "
-                        <> P.underline "GODADDY_API_KEY"
-                        <> " and "
-                        <> P.underline "GODADDY_API_SECRET"
-                        <> " environment variables to be set.",
+                      "All commands require the credentials to be set, either in the "
+                        <> P.underline "config file"
+                        <> ", in the environment variable "
+                        <> P.underline "GODADDY_API_CREDENTIALS"
+                        <> " or using the "
+                        <> P.underline "--credentials"
+                        <> " argument.",
                       cmdlineExplanation
                         "godaddy"
                         ""

@@ -217,6 +217,23 @@ Got an error from Godaddy: [422] "Unprocessable Entity":
 
 Deleting a nonexistent record does not produce an error.
 
+
+# Set Credentials
+
+Before any of the commands above work, Godaddy credentials will need
+to be set. The binary will search for them, in order, in a command
+line argument `--credentials`, an environment variable
+`GODADDY_API_CREDENTIALS` or a configuration file.
+
+
+# Configuraion File
+
+The binary searches for a configuration file named `godaddy.conf`
+either in the current directory or in `/etc/godaddy/`. If the
+`--config=FILEPATH` argument is given, it will search instead in the
+given location.
+
+
 # Installation
 
 ## Archlinux
