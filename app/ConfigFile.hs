@@ -3,7 +3,6 @@
 -- |
 module ConfigFile
   ( ConfigFile (..),
-    ParsedConfigFile (..),
     defaultConfigFiles,
     parse,
   )
@@ -21,16 +20,6 @@ import qualified System.IO.Error as Error
 newtype ConfigFile = ConfigFile
   { apiKey :: Godaddy.APIKey
   }
-
-data ParsedConfigFile = ParsedConfigFile
-  { failures :: [(Text, String)],
-    parsedConfigFile :: Maybe ConfigFile
-  }
-
-instance Semigroup ParsedConfigFile where
-  ParsedConfigFile f Nothing <> ParsedConfigFile f' s' =
-    ParsedConfigFile (f <> f') s'
-  ParsedConfigFile f s <> ParsedConfigFile f' _ = ParsedConfigFile (f <> f') s
 
 apikeyConfig :: Config.IniParser ConfigFile
 apikeyConfig =
