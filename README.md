@@ -13,7 +13,7 @@ API](https://developer.godaddy.com/getstarted).
 List all domains:
 
 ```bash
-$ godaddy
+$ godaddy domains
 Domains:
   example1.com
   DomainID:  1000001
@@ -28,10 +28,10 @@ Domains:
   RenewAuto: True
 ```
 
-List all A records under `example2.com` domain:
+List all servers under `example2.com` domain:
 
 ```bash
-$ godaddy example2.com
+$ godaddy servers list example2.com
 Records:
   @
   Type:     A
@@ -54,10 +54,14 @@ Records:
   TTL:      600
 ```
 
-List all CNAMEs pointing to `example2.com`:
+This project is opinionated. It assumes a server is a physical machine
+accessible through an IP address. This definition is mapped exactly to
+an A record. Listing servers is equivalent to listing A records.
+
+List all subdomains pointing to `example2.com`:
 
 ```bash
-$ godaddy example2.com @
+$ godaddy subdomains list example2.com @
 Records:
   www
   Type:     CNAME
@@ -70,10 +74,10 @@ Records:
   TTL:      600
 ```
 
-List all CNAMEs pointing to `one.example2.com`:
+List all subdomains pointing to `one.example2.com`:
 
 ```bash
-$ godaddy example2.com one
+$ godaddy subdomains list example2.com one
 Records:
   ftp
   Type:     CNAME
@@ -89,18 +93,17 @@ Records:
 List all records pointing to `one.example2.com` (A, CNAME, NS, TXT, etc.):
 
 ```bash
-$ godaddy example2.com --records
+$ godaddy records example2.com
 ```
 
-## Add or delete A records
+## Add or delete servers
 
 ```bash
-$ godaddy example2.com
+$ godaddy servers list example2.com
 Records:
 
-$ godaddy example2.com --add @:192.168.1.10
-$ godaddy example2.com --add @:192.168.1.11
-$ godaddy example2.com
+$ godaddy servers add example2.com @:192.168.1.10 @:192.168.1.11
+$ godaddy servers list example2.com
 Records:
   @
   Type:     A
@@ -112,9 +115,8 @@ Records:
   Data:     "192.168.1.11"
   TTL:      600
 
-$ godaddy example2.com --add www:192.168.1.20
-$ godaddy example2.com --add www:192.168.1.21
-$ godaddy example2.com
+$ godaddy servers add example2.com www:192.168.1.20 www:192.168.1.21
+$ godaddy servers list example2.com
 Records:
   @
   Type:     A
@@ -136,8 +138,8 @@ Records:
   Data:     "192.168.1.21"
   TTL:      600
 
-$ godaddy example2.com --delete www
-$ godaddy example2.com
+$ godaddy servers delete example2.com www
+$ godaddy servers list example2.com
 Records:
   @
   Type:     A
@@ -147,12 +149,25 @@ Records:
   @
   Type:     A
   Data:     "192.168.1.11"
+
+$ godaddy servers replace example2.com @:192.168.2.10 @:192.168.2.11
+$ godaddy servers list example2.com
+Records:
+  @
+  Type:     A
+  Data:     "192.168.2.10"
+  TTL:      600
+
+  @
+  Type:     A
+  Data:     "192.168.2.11"
+  TTL:      600
   TTL:      600
 ```
 
 Trying to add a duplicate A record produces an error:
 ```bash
-$ godaddy example2.com --add www:192.168.1.20
+$ godaddy servers add example2.com www:192.168.1.20
 Got an error from Godaddy: [422] "Unprocessable Entity":
 [DUPLICATE_RECORD] Another record with the same attributes already exists:
   field "records": A record name [www] conflicts with another record.
@@ -160,15 +175,14 @@ Got an error from Godaddy: [422] "Unprocessable Entity":
 
 Deleting an nonexistent record does not produce an error.
 
-## Add or delete CNAME records
+## Add or delete subdomains
 
 ```bash
-$ godaddy example2.com @
+$ godaddy subdomains list example2.com @
 Records:
 
-$ godaddy example2.com @ --add root1
-$ godaddy example2.com @ --add root2
-$ godaddy example2.com @
+$ godaddy subdomains add example2.com @ root1 root2
+$ godaddy subdomains list example2.com @
 Records:
   root1
   Type:     CNAME
@@ -183,9 +197,8 @@ Records:
 $ godaddy example2.com www
 Records:
 
-$ godaddy example2.com www --add www1
-$ godaddy example2.com www --add www2
-$ godaddy example2.com www
+$ godaddy subdomains add example2.com www www1 www2
+$ godaddy subdomains list example2.com www
 Records:
   www1
   Type:     CNAME
@@ -197,8 +210,8 @@ Records:
   Data:     "www.example2.com"
   TTL:      600
 
-$ godaddy example2.com www --delete www2
-$ godaddy example2.com www
+$ godaddy subdomains delete example2.com www www2
+$ godaddy subdomains list example2.com www
 Records:
   www1
   Type:     CNAME
@@ -209,7 +222,7 @@ Records:
 
 Trying to add a duplicate CNAME record produces an error:
 ```bash
-$ godaddy example2.com www --add www1
+$ godaddy subdomains add example2.com www www1
 Got an error from Godaddy: [422] "Unprocessable Entity":
 [DUPLICATE_RECORD] Another record with the same attributes already exists:
   field "records": CNAME record name [www1] conflicts with another record.
@@ -225,13 +238,16 @@ to be set. The binary will search for them, in order, in a command
 line argument `--credentials`, an environment variable
 `GODADDY_API_CREDENTIALS` or a configuration file.
 
+The first two expect the credentials to be given in the `KEY:SECRET`
+format.
+
 
 # Configuration File
 
-The binary searches for a configuration file named `godaddy.conf`
-either in the current directory or in `/etc/godaddy/`. If the
-`--config=FILEPATH` argument is given, it will search instead in the
-given location.
+The binary searches for a configuration file `./godaddy.conf` in the
+current directory or in `/etc/godaddy/godaddy.conf` if the first one
+does not exist. If the `--config=FILEPATH` argument is given, it will
+read the configuration file in the given location.
 
 The configuration file contains the following:
 
