@@ -10,6 +10,7 @@
 -- Provides some various utility functions.
 module Utils
   ( splitStringOnLastChar,
+    splitOn,
     lastMaybe,
   )
 where
@@ -21,6 +22,12 @@ splitStringOnLastChar :: Char -> String -> Maybe (String, String)
 splitStringOnLastChar char string =
   (\index -> drop 1 <$> List.splitAt index string)
     <$> lastMaybe (List.elemIndices char string)
+
+-- | Split a string on the given char.
+splitOn :: (Char -> Bool) -> String -> [String]
+splitOn p s = case dropWhile p s of
+  "" -> []
+  s' -> w : splitOn p s'' where (w, s'') = break p s'
 
 -- | Return the last element of the list.
 lastMaybe :: [a] -> Maybe a

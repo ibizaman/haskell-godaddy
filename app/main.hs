@@ -10,21 +10,27 @@ where
 import qualified Args
 import qualified ConfigFile
 import Control.Applicative (Alternative ((<|>)))
+import Control.Monad (forM_)
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty ((:|)))
+import Data.Maybe (fromMaybe)
 import Data.Text
   ( Text,
     isPrefixOf,
   )
+import qualified Data.Text as T
 import qualified Env
 import qualified Godaddy
 import HumanReadable
   ( HumanReadable,
     printForHumans,
   )
+import qualified IP
 import Network.HTTP.Client.TLS (newTlsManager)
+import qualified Options.Applicative.Help as Help
 import qualified Servant as S
 import qualified Servant.Client as SC
+import System.Environment (getProgName)
 
 main :: IO ()
 main = do
@@ -40,51 +46,35 @@ main = do
             <|> (ConfigFile.apiKey <$> configFile)
     let endpoint = Env.endpoint env
     case apiKey of
-      Nothing -> putStrLn "Please set the Godaddy API credentials."
-      Just apiKey' -> domainArgs endpoint apiKey' (Args.domainSubcommand args)
+      Nothing -> do
+        progName <- getProgName
+        Help.putDoc $
+          "Please set the Godaddy API credentials. Run "
+            <> Help.underline (Help.text progName <> " credentials")
+            <> " for more info."
+            <> Help.hardline
+      Just apiKey' -> command endpoint apiKey' (Args.command args)
   where
-    domainArgs endpoint apiKey Args.DomainsList =
+    command _ _ Args.ConfigHelp = return ()
+    command endpoint apiKey Args.Domains =
       run endpoint (getDomainsQuery apiKey) >>= display
-    domainArgs endpoint apiKey (Args.Domain domain s) =
-      serverArgs endpoint apiKey domain s
-
-    serverArgs endpoint apiKey domain Args.ServersList =
-      run endpoint (getRecordsWithTypeQuery apiKey domain Godaddy.A) >>= display
-    serverArgs endpoint apiKey domain Args.AllRecords =
-      run endpoint (getRecordsQuery apiKey domain) >>= display
-    serverArgs endpoint apiKey domain (Args.ServerAdd server ip) =
+    command endpoint apiKey (Args.Records domain) =
+      run endpoint (getRecordsQuery apiKey $ Args.unDomain domain) >>= display
+    command endpoint apiKey (Args.Servers domain) =
       run
         endpoint
-        ( addRecordsQuery
-            apiKey
-            domain
-            [ Godaddy.Record
-                { recordName = server,
-                  recordData = ip,
-                  recordType = Godaddy.A,
-                  recordPort = Nothing,
-                  recordPriority = Nothing,
-                  recordProtocol = Nothing,
-                  recordService = Nothing,
-                  recordTtl = Nothing,
-                  recordWeight = Nothing
-                }
-            ]
-        )
-        >>= displayErr
-    serverArgs endpoint apiKey domain (Args.ServerDelete server) =
-      run endpoint (deleteRecordsWithTypeNameQuery apiKey domain Godaddy.A server)
-        >>= displayErr
-    serverArgs endpoint apiKey domain (Args.ServerReplace server ip) =
-      run endpoint (deleteRecordsWithTypeNameQuery apiKey domain Godaddy.A server)
-        >> run
+        (getRecordsWithTypeQuery apiKey (Args.unDomain domain) Godaddy.A)
+        >>= display
+    command endpoint apiKey (Args.ServerAdd domain serverIps) =
+      forM_ serverIps $ \(Args.ServerIP server ip) ->
+        run
           endpoint
           ( addRecordsQuery
               apiKey
-              domain
+              (Args.unDomain domain)
               [ Godaddy.Record
-                  { recordName = server,
-                    recordData = ip,
+                  { recordName = Args.unServer server,
+                    recordData = Args.unIP ip,
                     recordType = Godaddy.A,
                     recordPort = Nothing,
                     recordPriority = Nothing,
@@ -95,42 +85,121 @@ main = do
                   }
               ]
           )
-        >>= displayErr
-    serverArgs endpoint apiKey domain (Args.Server server sd) =
-      subdomainArgs endpoint apiKey domain server sd
-
-    subdomainArgs endpoint apiKey domain server Args.SubdomainsList =
-      run endpoint (getRecordsWithTypeQuery apiKey domain Godaddy.CNAME)
-        >>= display
-          . fmap (filterRecordsByDataPrefix server)
-    subdomainArgs endpoint apiKey domain server (Args.SubdomainAdd subdomain) =
-      let serverName = case server of
-            "@" -> "@"
-            s -> s <> "." <> domain
-       in run
-            endpoint
-            ( addRecordsQuery
-                apiKey
-                domain
-                [ Godaddy.Record
-                    { recordName = subdomain,
-                      recordData = serverName,
-                      recordType = Godaddy.CNAME,
-                      recordPort = Nothing,
-                      recordPriority = Nothing,
-                      recordProtocol = Nothing,
-                      recordService = Nothing,
-                      recordTtl = Nothing,
-                      recordWeight = Nothing
-                    }
-                ]
-            )
-            >>= displayErr
-    subdomainArgs endpoint apiKey domain _server (Args.SubdomainDelete subdomain) =
+          >>= displayErr
+    command endpoint apiKey (Args.ServerDelete domain servers) =
+      forM_ servers $ \server ->
+        run
+          endpoint
+          ( deleteRecordsWithTypeNameQuery
+              apiKey
+              (Args.unDomain domain)
+              Godaddy.A
+              (Args.unServer server)
+          )
+          >>= displayErr
+    command endpoint apiKey (Args.ServerReplace domain serverIps) = do
+      forM_ serverIps $ \(Args.ServerIP server _ip) ->
+        run
+          endpoint
+          ( deleteRecordsWithTypeNameQuery
+              apiKey
+              (Args.unDomain domain)
+              Godaddy.A
+              (Args.unServer server)
+          )
+          >>= displayErr
+      forM_ serverIps $ \(Args.ServerIP server ip) ->
+        run
+          endpoint
+          ( addRecordsQuery
+              apiKey
+              (Args.unDomain domain)
+              [ Godaddy.Record
+                  { recordName = Args.unServer server,
+                    recordData = Args.unIP ip,
+                    recordType = Godaddy.A,
+                    recordPort = Nothing,
+                    recordPriority = Nothing,
+                    recordProtocol = Nothing,
+                    recordService = Nothing,
+                    recordTtl = Nothing,
+                    recordWeight = Nothing
+                  }
+              ]
+          )
+          >>= displayErr
+    command endpoint apiKey (Args.Subdomains domain server) =
       run
         endpoint
-        (deleteRecordsWithTypeNameQuery apiKey domain Godaddy.CNAME subdomain)
-        >>= displayErr
+        (getRecordsWithTypeQuery apiKey (Args.unDomain domain) Godaddy.CNAME)
+        >>= display
+          . fmap (filterRecordsByDataPrefix $ Args.unServer server)
+    command endpoint apiKey (Args.SubdomainAdd domain server subdomains) =
+      forM_ subdomains $ \subdomain ->
+        let serverName = case Args.unServer server of
+              "@" -> "@"
+              s -> s <> "." <> Args.unDomain domain
+         in run
+              endpoint
+              ( addRecordsQuery
+                  apiKey
+                  (Args.unDomain domain)
+                  [ Godaddy.Record
+                      { recordName = Args.unSubdomain subdomain,
+                        recordData = serverName,
+                        recordType = Godaddy.CNAME,
+                        recordPort = Nothing,
+                        recordPriority = Nothing,
+                        recordProtocol = Nothing,
+                        recordService = Nothing,
+                        recordTtl = Nothing,
+                        recordWeight = Nothing
+                      }
+                  ]
+              )
+              >>= displayErr
+    command endpoint apiKey (Args.SubdomainDelete domain _server subdomains) =
+      forM_ subdomains $ \subdomain ->
+        run
+          endpoint
+          ( deleteRecordsWithTypeNameQuery
+              apiKey
+              (Args.unDomain domain)
+              Godaddy.CNAME
+              (Args.unSubdomain subdomain)
+          )
+          >>= displayErr
+    command endpoint apiKey (Args.Dyndns domain servers) =
+      run' IP.defaultIpifyEndpoint getIPQuery >>= \case
+        Left err -> putStrLn $ "Could not get IP: " <> show err
+        Right (IP.IP ip) -> forM_ servers $ \server ->
+          run
+            endpoint
+            ( replaceRecordsWithTypeNameQuery
+                apiKey
+                (Args.unDomain domain)
+                Godaddy.A
+                (Args.unServer server)
+                Godaddy.Record
+                  { recordName = Args.unServer server,
+                    recordData = ip,
+                    recordType = Godaddy.A,
+                    recordPort = Nothing,
+                    recordPriority = Nothing,
+                    recordProtocol = Nothing,
+                    recordService = Nothing,
+                    recordTtl = Nothing,
+                    recordWeight = Nothing
+                  }
+            )
+            >>= \e -> do
+              displayErr'
+                ( Just $
+                    "while updating server '"
+                      <> Args.unServer server
+                      <> "': "
+                )
+                e
 
 getDomainsQuery :: Godaddy.APIKey -> SC.ClientM [Godaddy.Domain]
 getDomainsQuery apiKey = do
@@ -162,6 +231,20 @@ filterRecordsByDataPrefix :: Text -> [Godaddy.Record] -> [Godaddy.Record]
 filterRecordsByDataPrefix prefix =
   filter (\Godaddy.Record {recordData} -> prefix `isPrefixOf` recordData)
 
+replaceRecordsWithTypeNameQuery ::
+  Godaddy.APIKey ->
+  Text ->
+  Godaddy.RecordType ->
+  Text ->
+  Godaddy.Record ->
+  SC.ClientM S.NoContent
+replaceRecordsWithTypeNameQuery apiKey domain recordType name record = do
+  let Godaddy.Client {..} = Godaddy.mkClient apiKey
+      Godaddy.DomainClient {..} = mkDomainClient domain
+      Godaddy.RecordsTypeClient {..} = mkRecordsWithTypeClient recordType
+      Godaddy.RecordsTypeNameClient {..} = mkRecordsWithTypeNameClient name
+  replaceRecordsWithTypeName [record]
+
 deleteRecordsWithTypeNameQuery ::
   Godaddy.APIKey ->
   Text ->
@@ -175,58 +258,76 @@ deleteRecordsWithTypeNameQuery apiKey domain recordType name = do
       Godaddy.RecordsTypeNameClient {..} = mkRecordsWithTypeNameClient name
   deleteRecordsWithTypeName
 
-run :: SC.BaseUrl -> SC.ClientM a -> IO (Either Godaddy.Error a)
-run endpoint query = do
+getIPQuery :: SC.ClientM IP.IP
+getIPQuery = do
+  let IP.IpifyClient {..} = IP.mkClient (Just IP.FormatJSON)
+  getIP
+
+run' :: SC.BaseUrl -> SC.ClientM a -> IO (Either SC.ClientError a)
+run' endpoint query = do
   manager' <- newTlsManager
-  mapLeft Godaddy.parseError
-    <$> SC.runClientM query (SC.mkClientEnv manager' endpoint)
+  SC.runClientM query (SC.mkClientEnv manager' endpoint)
+
+run :: SC.BaseUrl -> SC.ClientM a -> IO (Either Godaddy.Error a)
+run endpoint query = mapLeft Godaddy.parseError <$> run' endpoint query
 
 displayErr :: Either Godaddy.Error a -> IO ()
-displayErr (Right _) = return ()
-displayErr (Left err) = case err of
-  Godaddy.Error Godaddy.Status {statusCode, statusMessage} e ->
-    putStrLn $
-      "Got an error from Godaddy: ["
-        <> show statusCode
-        <> "] "
-        <> statusMessage
-        <> ":\n"
-        <> printError e
-    where
-      printError :: Godaddy.GodaddyError -> String
-      printError Godaddy.GodaddyError {..} =
-        "["
-          <> errorCode
-          <> "] "
-          <> errorMessage
-          <> maybe "" (\e' -> ":\n" <> printFields e') errorFields
+displayErr = displayErr' Nothing
 
-      printFields :: [Godaddy.ErrorField] -> String
-      printFields = List.intercalate "\n" . map printField
+displayErr' :: Maybe Text -> Either Godaddy.Error a -> IO ()
+displayErr' _ (Right _) = return ()
+displayErr' prefix (Left err) =
+  let prefix' = T.unpack $ fromMaybe "" prefix
+   in case err of
+        Godaddy.Error Godaddy.Status {statusCode, statusMessage} e ->
+          putStrLn $
+            prefix'
+              <> "got an error from Godaddy: ["
+              <> show statusCode
+              <> "] "
+              <> statusMessage
+              <> ":\n"
+              <> printError e
+          where
+            printError :: Godaddy.GodaddyError -> String
+            printError Godaddy.GodaddyError {..} =
+              "["
+                <> errorCode
+                <> "] "
+                <> errorMessage
+                <> maybe "" (\e' -> ":\n" <> printFields e') errorFields
 
-      printField :: Godaddy.ErrorField -> String
-      printField Godaddy.ErrorField {..} =
-        "  field \"" <> fieldPath <> "\": " <> fieldMessage
-  Godaddy.DecodeError Godaddy.Status {statusCode, statusMessage} e decodeError ->
-    putStrLn $
-      "Got an error \""
-        <> decodeError
-        <> "\" while decoding a status code from Godaddy ["
-        <> show statusCode
-        <> "] "
-        <> statusMessage
-        <> ": "
-        <> e
-  Godaddy.ConnectionError e ->
-    putStrLn $ "Got a connection error while talking with Godaddy: " <> e
-  Godaddy.OtherError Godaddy.Status {statusCode, statusMessage} e ->
-    putStrLn $
-      "Got an error status code from Godaddy ["
-        <> show statusCode
-        <> "] "
-        <> statusMessage
-        <> ": "
-        <> e
+            printFields :: [Godaddy.ErrorField] -> String
+            printFields = List.intercalate "\n" . map printField
+
+            printField :: Godaddy.ErrorField -> String
+            printField Godaddy.ErrorField {..} =
+              "  field \"" <> fieldPath <> "\": " <> fieldMessage
+        Godaddy.DecodeError Godaddy.Status {statusCode, statusMessage} e decodeError ->
+          putStrLn $
+            prefix'
+              <> "got an error \""
+              <> decodeError
+              <> "\" while decoding a status code from Godaddy ["
+              <> show statusCode
+              <> "] "
+              <> statusMessage
+              <> ": "
+              <> e
+        Godaddy.ConnectionError e ->
+          putStrLn $
+            prefix'
+              <> "got a connection error while talking with Godaddy: "
+              <> e
+        Godaddy.OtherError Godaddy.Status {statusCode, statusMessage} e ->
+          putStrLn $
+            prefix'
+              <> "got an error status code from Godaddy ["
+              <> show statusCode
+              <> "] "
+              <> statusMessage
+              <> ": "
+              <> e
 
 display :: HumanReadable a => Either Godaddy.Error a -> IO ()
 display (Left err) = displayErr $ Left err

@@ -1,14 +1,22 @@
 -- |
 module Args
   ( Args (..),
-    Domains (..),
-    Servers (..),
-    Subdomains (..),
+    Command (..),
+    Domain (..),
+    Server (..),
+    IP (..),
+    ServerIP (..),
+    Subdomain (..),
     getArgs,
   )
 where
 
+import Data.Bifunctor (Bifunctor (bimap))
 import qualified Data.List as List
+import Data.List.NonEmpty
+  ( NonEmpty,
+    some1,
+  )
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Godaddy
@@ -23,28 +31,34 @@ import qualified Utils
 data Args = Args
   { configFile :: Maybe Text,
     credentials :: Maybe Godaddy.APIKey,
-    domainSubcommand :: Domains
+    command :: Command
   }
 
-data Domains
-  = DomainsList
-  | Domain Text Servers
+newtype Domain = Domain {unDomain :: Text}
 
-data Servers
-  = ServersList
-  | AllRecords
-  | ServerAdd Text Text
-  | ServerDelete Text
-  | ServerReplace Text Text
-  | Server Text Subdomains
+newtype Server = Server {unServer :: Text}
 
-data Subdomains
-  = SubdomainsList
-  | SubdomainAdd Text
-  | SubdomainDelete Text
+newtype IP = IP {unIP :: Text}
+
+data ServerIP = ServerIP Server IP
+
+newtype Subdomain = Subdomain {unSubdomain :: Text}
+
+data Command
+  = ConfigHelp
+  | Domains
+  | Records Domain
+  | Servers Domain
+  | ServerAdd Domain (NonEmpty ServerIP)
+  | ServerDelete Domain (NonEmpty Server)
+  | ServerReplace Domain (NonEmpty ServerIP)
+  | Subdomains Domain Server
+  | SubdomainAdd Domain Server (NonEmpty Subdomain)
+  | SubdomainDelete Domain Server (NonEmpty Subdomain)
+  | Dyndns Domain (NonEmpty Server)
 
 argsParser :: Opts.Parser Args
-argsParser = Args <$> configFileParser <*> credentialsParser <*> domainsParser
+argsParser = Args <$> configFileParser <*> credentialsParser <*> commandParser
 
 configFileParser :: Opts.Parser (Maybe Text)
 configFileParser =
@@ -60,35 +74,121 @@ credentialsParser =
       (Opts.maybeReader Godaddy.parseApiKey)
       (Opts.long "credentials" <> Opts.metavar "KEY:SECRET")
 
-domainsParser :: Opts.Parser Domains
-domainsParser =
-  pure DomainsList
-    <|> ( Domain
-            <$> Opts.argument Opts.str (Opts.metavar "DOMAIN")
-            <*> serversParser
-        )
+commandParser :: Opts.Parser Command
+commandParser =
+  Opts.hsubparser
+    ( Opts.command
+        "domains"
+        (Opts.info (pure Domains) (Opts.progDesc "List all domains"))
+        <> Opts.command
+          "records"
+          ( Opts.info
+              (Records <$> domainParser)
+              (Opts.progDesc "List all records of a domain")
+          )
+        <> Opts.commandGroup "General commands:"
+    )
+    <|> Opts.hsubparser
+      ( Opts.command
+          "servers"
+          ( Opts.info
+              serversParser
+              ( Opts.progDesc "Manage servers of the domain"
+                  <> Opts.footerDoc
+                    ( Just $
+                        "Request to a "
+                          <> P.underline "server"
+                          <> " are answered by a physical server reachable by an IP."
+                          <> " A "
+                          <> P.underline "server"
+                          <> " is implemented by an A record."
+                    )
+              )
+          )
+          <> Opts.command
+            "subdomains"
+            ( Opts.info
+                subdomainsParser
+                ( Opts.progDesc "Manage subdomains pointing to servers"
+                    <> Opts.footerDoc
+                      ( Just $
+                          "Requests to a "
+                            <> P.underline "subdomain"
+                            <> " are answered by a "
+                            <> P.underline "server"
+                            <> ". A "
+                            <> P.underline "subdomain"
+                            <> " is implemented by a CNAME record pointing to an A record."
+                      )
+                )
+            )
+          <> Opts.command
+            "dyndns"
+            ( Opts.info
+                dyndnsParser
+                (Opts.progDesc "Update servers with current external IP")
+            )
+          <> Opts.commandGroup "Opinionated commands:"
+      )
+    <|> Opts.hsubparser
+      ( Opts.command
+          "config"
+          ( Opts.info
+              (showAlwaysHelp ConfigHelp)
+              ( Opts.progDesc "Print help about config file"
+                  <> Opts.footerDoc
+                    ( Just $
+                        "All commands require the credentials to be set, either in the "
+                          <> P.underline "config file"
+                          <> ", in the environment variable "
+                          <> P.underline "GODADDY_API_CREDENTIALS"
+                          <> " or using the "
+                          <> P.underline "--credentials"
+                          <> " argument. "
+                          <> "The latter two expect the credentials to be given in a "
+                          <> P.underline "KEY:SECRET"
+                          <> " format."
+                          <> P.hardline
+                          <> P.hardline
+                          <> "If a path to a filename is given to the "
+                          <> P.underline "--config"
+                          <> " argument, the config file is read there. "
+                          <> "When no such argument is given, the config file is searched first under the current directory "
+                          <> P.underline "./godaddy.conf"
+                          <> " then under "
+                          <> P.underline "/etc/godaddy/godaddy.conf"
+                          <> P.hardline
+                          <> P.hardline
+                          <> "The config file is composed of a unique [CREDENTIALS] section:"
+                          <> P.hardline
+                          <> P.indent
+                            2
+                            ( "[CREDENTIALS]"
+                                <> P.hardline
+                                <> "apikey="
+                                <> P.hardline
+                                <> "apisecret="
+                            )
+                    )
+              )
+          )
+          <> Opts.commandGroup "Help commands:"
+      )
 
-serversParser :: Opts.Parser Servers
-serversParser =
-  pure ServersList
-    <|> Opts.flag' AllRecords (Opts.long "records")
-    <|> ( (\(server, ip) -> ServerAdd (T.pack server) (T.pack ip))
-            <$> Opts.option
-              (Opts.eitherReader parseServerIP)
-              (Opts.long "add" <> Opts.metavar "SERVER:IP")
-        )
-    <|> ( ServerDelete
-            <$> Opts.strOption (Opts.long "delete" <> Opts.metavar "SERVER")
-        )
-    <|> ( (\(server, ip) -> ServerReplace (T.pack server) (T.pack ip))
-            <$> Opts.option
-              (Opts.eitherReader parseServerIP)
-              (Opts.long "replace" <> Opts.metavar "SERVER:IP")
-        )
-    <|> ( Server
-            <$> Opts.argument Opts.str (Opts.metavar "SERVER")
-            <*> subdomainsParser
-        )
+domainParser :: Opts.Parser Domain
+domainParser = Domain <$> Opts.argument Opts.str (Opts.metavar "DOMAIN")
+
+serverParser :: Opts.Parser Server
+serverParser = Server <$> Opts.argument Opts.str (Opts.metavar "SERVER")
+
+serverIPParser :: Opts.Parser ServerIP
+serverIPParser =
+  Opts.argument
+    ( uncurry ServerIP
+        . bimap (Server . T.pack) (IP . T.pack)
+        <$> Opts.eitherReader parseServerIP
+    )
+    (Opts.metavar "SERVER:IP")
   where
     parseServerIP =
       maybeToEither "expected format is SERVER:IP"
@@ -98,19 +198,100 @@ serversParser =
     maybeToEither _ (Just b) = Right b
     maybeToEither a Nothing = Left a
 
-subdomainsParser :: Opts.Parser Subdomains
+subdomainParser :: Opts.Parser Subdomain
+subdomainParser =
+  Subdomain <$> Opts.argument Opts.str (Opts.metavar "SUBDOMAIN")
+
+serversParser :: Opts.Parser Command
+serversParser =
+  Opts.hsubparser
+    ( Opts.command
+        "list"
+        ( Opts.info
+            (Servers <$> domainParser)
+            ( Opts.progDescDoc
+                (Just $ "List all " <> P.underline "servers" <> " of the DOMAIN.")
+            )
+        )
+        <> Opts.command
+          "add"
+          ( Opts.info
+              (ServerAdd <$> domainParser <*> some1 serverIPParser)
+              ( Opts.progDescDoc
+                  ( Just $ "Add a " <> P.underline "server" <> " pointing to an IP."
+                  )
+                  <> Opts.footer
+                    ( "Multiple A records with the same name can exist if they point to different IPs."
+                        <> " To create a server handling requests to the DOMAIN directly, use @:IP (a literal \"at\")."
+                    )
+              )
+          )
+        <> Opts.command
+          "delete"
+          ( Opts.info
+              (ServerDelete <$> domainParser <*> some1 serverParser)
+              ( Opts.progDescDoc (Just $ "Delete a " <> P.underline "server" <> ".")
+                  <> Opts.footer "Do nothing if it does not exist."
+              )
+          )
+        <> Opts.command
+          "replace"
+          ( Opts.info
+              (ServerReplace <$> domainParser <*> some1 serverIPParser)
+              ( Opts.progDescDoc
+                  ( Just $
+                      "Replace all "
+                        <> P.underline "servers"
+                        <> " with new ones pointing to the given IP."
+                  )
+                  <> Opts.footer "Add it if does not exist."
+              )
+          )
+    )
+
+subdomainsParser :: Opts.Parser Command
 subdomainsParser =
-  pure SubdomainsList
-    <|> ( SubdomainAdd
-            <$> Opts.strOption (Opts.long "add" <> Opts.metavar "SUBDOMAIN")
+  Opts.hsubparser
+    ( Opts.command
+        "list"
+        ( Opts.info
+            (Subdomains <$> domainParser <*> serverParser)
+            ( Opts.progDesc
+                "List all CNAME records for the DOMAIN pointing to the given SERVER."
+            )
         )
-    <|> ( SubdomainDelete
-            <$> Opts.strOption (Opts.long "delete" <> Opts.metavar "SUBDOMAIN")
-        )
+        <> Opts.command
+          "add"
+          ( Opts.info
+              ( SubdomainAdd
+                  <$> domainParser
+                  <*> serverParser
+                  <*> some1 subdomainParser
+              )
+              (Opts.progDesc "Add a CNAME record pointing to the given SERVER.")
+          )
+        <> Opts.command
+          "delete"
+          ( Opts.info
+              ( SubdomainDelete
+                  <$> domainParser
+                  <*> serverParser
+                  <*> some1 subdomainParser
+              )
+              (Opts.progDesc "Delete a CNAME record pointing to the given SERVER.")
+          )
+    )
+
+dyndnsParser :: Opts.Parser Command
+dyndnsParser =
+  Dyndns
+    <$> Opts.argument (Domain <$> Opts.str) (Opts.metavar "DOMAIN")
+    <*> some1 (Opts.argument (Server <$> Opts.str) (Opts.metavar "SERVER"))
 
 getArgs :: IO Args
-getArgs = Opts.execParser opts
+getArgs = Opts.customExecParser p opts
   where
+    p = Opts.prefs Opts.showHelpOnEmpty
     opts =
       Opts.info
         (argsParser <**> Opts.helper)
@@ -119,48 +300,21 @@ getArgs = Opts.execParser opts
               ( Just $
                   mintercalate
                     (P.hardline <> P.hardline)
-                    [ "godaddy allows you to create and delete A records and CNAME records.",
-                      "All commands require the credentials to be set, either in the "
-                        <> P.underline "config file"
-                        <> ", in the environment variable "
-                        <> P.underline "GODADDY_API_CREDENTIALS"
-                        <> " or using the "
-                        <> P.underline "--credentials"
-                        <> " argument.",
-                      cmdlineExplanation
-                        "godaddy"
-                        ""
-                        "Without arguments, print all domains.",
-                      cmdlineExplanation
-                        "godaddy"
-                        "DOMAIN [--add SERVER:IP | --replace SERVER:IP | --delete SERVER | --records]"
-                        ( "Print all servers under the given DOMAIN. "
-                            <> "Optionally add a server, replace all servers, delete all records of a server or show all records for the given DOMAIN."
-                            <> P.line
-                            <> "A server is an A record associated with an IP. "
-                            <> "To create a server handling requests to the DOMAIN directly, use --add @:IP (a literal \"at\"). "
-                            <> "For requests to SERVER.DOMAIN, use --add SERVER:IP. "
-                            <> "Multiple records with the same SERVER name can be added as long as you assign different IPs."
-                        ),
-                      cmdlineExplanation
-                        "godaddy"
-                        "DOMAIN SERVER [--add SUBDOMAIN | --delete SUBDOMAIN]"
-                        ( "Print all subdomains for the given SERVER.DOMAIN."
-                            <> "Optionally add or delete a subdomain. "
-                            <> "No check is made if no corresponding SERVER.DOMAIN record exists on add."
-                            <> P.line
-                            <> "A subdomain is a CNAME pointing to a given SERVER.DOMAIN."
-                        )
+                    [ "This program allows you to manage Godaddy records.",
+                      "All commands require the credentials to be set, run the "
+                        <> P.underline "config"
+                        <> " command for more information.",
+                      "The Godaddy endpoint can be modified with the "
+                        <> P.underline "GODADDY_CUSTOM_ENDPOINT"
+                        <> " environment variable."
+                        <> " This is useful mostly to debug the requests made to Godaddy."
                     ]
               )
         )
 
-    cmdlineExplanation name cmd expl =
-      P.underline (P.bold name)
-        <> " "
-        <> P.bold cmd
-        <> P.hardline
-        <> P.indent 4 expl
-
 mintercalate :: P.Doc -> [P.Doc] -> P.Doc
 mintercalate separator = mconcat . List.intersperse separator
+
+showAlwaysHelp :: a -> Opts.Parser a
+showAlwaysHelp p =
+  p <$ Opts.argument (Opts.eitherReader Left) (Opts.metavar "")

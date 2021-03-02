@@ -43,7 +43,7 @@ apikeyConfig =
       )
 
 parse :: NonEmpty Text -> IO (Either String ConfigFile)
-parse = fmap asum . sequenceA . fmap parseFile
+parse = fmap asum . traverse parseFile
   where
     parseFile :: Text -> IO (Either String ConfigFile)
     parseFile file = do
