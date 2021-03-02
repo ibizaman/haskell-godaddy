@@ -161,14 +161,17 @@ commandParser =
                           <> P.hardline
                           <> "The config file is composed of a unique [CREDENTIALS] section:"
                           <> P.hardline
+                          <> P.hardline
                           <> P.indent
                             2
                             ( "[CREDENTIALS]"
                                 <> P.hardline
-                                <> "apikey="
+                                <> "apikey=KEY"
                                 <> P.hardline
-                                <> "apisecret="
+                                <> "apisecret=SECRET"
                             )
+                          <> P.hardline
+                          <> "The KEY and SECRET should not be quoted."
                     )
               )
           )

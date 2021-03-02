@@ -253,11 +253,12 @@ The configuration file contains the following:
 
 ```
 [CREDENTIALS]
-apikey="KEY"
-apisecret="SECRET"
+apikey=KEY
+apisecret=SECRET
 ```
 
-It must contain a trailing newline.
+The KEY and SECRET should not be quoted and the config file must
+contain a trailing newline.
 
 
 # Installation
