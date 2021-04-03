@@ -1,0 +1,103 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.3.
+--
+-- see: https://github.com/sol/hpack
+
+name:           haskell-godaddy
+version:        0.0.0.4
+synopsis:       Command-line interface and library to configure Godaddy domain records
+description:    Please see the README on GitHub at <https://github.com/ibizaman/haskell-godaddy#readme>
+category:       DNS,Executable,Godaddy
+homepage:       https://github.com/ibizaman/haskell-godaddy#readme
+bug-reports:    https://github.com/ibizaman/haskell-godaddy/issues
+author:         Pierre Penninckx
+maintainer:     ibizapeanut@gmail.com
+copyright:      2020 Pierre Penninckx
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/ibizaman/haskell-godaddy
+
+library
+  exposed-modules:
+      Godaddy
+      HumanReadable
+      IP
+      Utils
+  other-modules:
+      Paths_haskell_godaddy
+  hs-source-dirs:
+      src
+  default-extensions: OverloadedStrings
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fwarn-incomplete-patterns -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns -fwarn-missing-signatures -fwarn-name-shadowing -fwarn-overlapping-patterns -fwarn-tabs -fwarn-unused-imports
+  build-depends:
+      aeson ==1.5.*
+    , base ==4.12.0.0
+    , exceptions
+    , http-client ==0.6.*
+    , http-client-tls ==0.3.5.*
+    , http-types ==0.12.*
+    , servant-client ==0.18.*
+    , servant-server ==0.18.*
+    , text ==1.2.*
+    , time ==1.8.*
+  default-language: Haskell2010
+
+executable haskell-godaddy-exe
+  main-is: main.hs
+  other-modules:
+      Args
+      ConfigFile
+      Env
+      Paths_haskell_godaddy
+  hs-source-dirs:
+      app
+  default-extensions: OverloadedStrings
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fwarn-incomplete-patterns -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns -fwarn-missing-signatures -fwarn-name-shadowing -fwarn-overlapping-patterns -fwarn-tabs -fwarn-unused-imports -rtsopts -threaded -with-rtsopts=-N
+  build-depends:
+      aeson ==1.5.*
+    , base ==4.12.0.0
+    , config-ini ==0.2.*
+    , envy ==2.1.*
+    , exceptions
+    , haskell-godaddy
+    , http-client ==0.6.*
+    , http-client-tls ==0.3.5.*
+    , http-types ==0.12.*
+    , optparse-applicative ==0.15.*
+    , servant-client ==0.18.*
+    , servant-server ==0.18.*
+    , text ==1.2.*
+    , time ==1.8.*
+  default-language: Haskell2010
+
+test-suite haskell-godaddy-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      UtilsSpec
+      Paths_haskell_godaddy
+  hs-source-dirs:
+      test
+  default-extensions: OverloadedStrings
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fwarn-incomplete-patterns -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns -fwarn-missing-signatures -fwarn-name-shadowing -fwarn-overlapping-patterns -fwarn-tabs -fwarn-unused-imports -rtsopts -threaded -with-rtsopts=-N
+  build-depends:
+      aeson ==1.5.*
+    , base ==4.12.0.0
+    , exceptions
+    , haskell-godaddy
+    , hspec ==2.7.*
+    , hspec-core ==2.7.*
+    , hspec-discover ==2.7.*
+    , http-client ==0.6.*
+    , http-client-tls ==0.3.5.*
+    , http-types ==0.12.*
+    , servant-client ==0.18.*
+    , servant-server ==0.18.*
+    , text ==1.2.*
+    , time ==1.8.*
+  default-language: Haskell2010
