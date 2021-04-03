@@ -17,6 +17,7 @@
 -- The following snippet shows how to set the Servant 'Servant.Client'
 -- up.
 --
+-- > import Control.Monad (void)
 -- > import Data.Either.Combinators (mapLeft)
 -- > import qualified Godaddy
 -- > import Network.HTTP.Client.TLS (newTlsManager)
@@ -31,6 +32,8 @@
 -- The following snippet shows how to make queries thanks to the run
 -- function we just defined above.
 --
+-- > {-# LANGUAGE RecordWildCards #-}
+-- >
 -- > endpoint :: SC.BaseUrl
 -- > endpoint = Godaddy.defaultBaseUrl
 -- >
@@ -43,7 +46,7 @@
 -- >   getDomains
 -- >
 -- > main :: IO ()
--- > main = run endpoint (getDomainsQuery apiKey)
+-- > main = void $ run endpoint (getDomainsQuery apiKey)
 module Godaddy
   ( -- * Setup API
     defaultBaseUrl,
