@@ -47,7 +47,7 @@ parse = fmap asum . traverse parseFile
         <$> readFileSafe file
 
 defaultConfigFiles :: NonEmpty Text
-defaultConfigFiles = "godaddy.conf" :| ["/etc/godaddy/godaddy.conf"]
+defaultConfigFiles = "godaddy.conf" :| ["/etc/hsgodaddy/godaddy.conf"]
 
 data File = Error String | FileContent Text
 
