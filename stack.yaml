@@ -1,4 +1,4 @@
-resolver: lts-14.17
+resolver: lts-17.13
 
 build:
     # https://github.com/haskell/haskell-ide-engine/issues/1564#issuecomment-636315399

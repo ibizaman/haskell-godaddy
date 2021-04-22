@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.3.
+-- This file has been generated from package.yaml by hpack version 0.34.2.
 --
 -- see: https://github.com/sol/hpack
 
@@ -36,7 +36,7 @@ library
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fwarn-incomplete-patterns -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns -fwarn-missing-signatures -fwarn-name-shadowing -fwarn-overlapping-patterns -fwarn-tabs -fwarn-unused-imports
   build-depends:
       aeson ==1.5.*
-    , base ==4.12.0.0
+    , base ==4.14.1.0
     , exceptions
     , http-client ==0.6.*
     , http-client-tls ==0.3.5.*
@@ -44,7 +44,7 @@ library
     , servant-client ==0.18.*
     , servant-server ==0.18.*
     , text ==1.2.*
-    , time ==1.8.*
+    , time ==1.9.*
   default-language: Haskell2010
 
 executable haskell-godaddy-exe
@@ -60,7 +60,7 @@ executable haskell-godaddy-exe
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fwarn-incomplete-patterns -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns -fwarn-missing-signatures -fwarn-name-shadowing -fwarn-overlapping-patterns -fwarn-tabs -fwarn-unused-imports -rtsopts -threaded -with-rtsopts=-N
   build-depends:
       aeson ==1.5.*
-    , base ==4.12.0.0
+    , base ==4.14.1.0
     , config-ini ==0.2.*
     , envy ==2.1.*
     , exceptions
@@ -72,7 +72,7 @@ executable haskell-godaddy-exe
     , servant-client ==0.18.*
     , servant-server ==0.18.*
     , text ==1.2.*
-    , time ==1.8.*
+    , time ==1.9.*
   default-language: Haskell2010
 
 test-suite haskell-godaddy-test
@@ -87,7 +87,7 @@ test-suite haskell-godaddy-test
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fwarn-incomplete-patterns -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns -fwarn-missing-signatures -fwarn-name-shadowing -fwarn-overlapping-patterns -fwarn-tabs -fwarn-unused-imports -rtsopts -threaded -with-rtsopts=-N
   build-depends:
       aeson ==1.5.*
-    , base ==4.12.0.0
+    , base ==4.14.1.0
     , exceptions
     , haskell-godaddy
     , hspec ==2.7.*
@@ -99,5 +99,5 @@ test-suite haskell-godaddy-test
     , servant-client ==0.18.*
     , servant-server ==0.18.*
     , text ==1.2.*
-    , time ==1.8.*
+    , time ==1.9.*
   default-language: Haskell2010

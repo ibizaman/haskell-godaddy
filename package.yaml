@@ -13,13 +13,14 @@ description: Please see the README on GitHub at <https://github.com/ibizaman/has
 
 dependencies:
     # base must match what comes with ghc
-    - base == 4.12.0.0
+    - base == 4.14.1.0
     - aeson == 1.5.*
+    - exceptions
     - http-client == 0.6.*
     - http-client-tls == 0.3.5.*
     - http-types == 0.12.*
     - text == 1.2.*
-    - time == 1.8.*
+    - time == 1.9.*
     - servant-server == 0.18.*
     - servant-client == 0.18.*
 
