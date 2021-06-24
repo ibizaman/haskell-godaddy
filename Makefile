@@ -3,8 +3,15 @@
 build:
 	stack --nix build
 
+build-release-lib:
+	nix-build -A haskell-godaddy.components.library
+
+build-release-exe:
+	nix-build -A haskell-godaddy.components.exes
+	echo "Executable is in ./result/bin"
+
 build-release:
-	nix-build
+	nix-build -A haskell-godaddy.components.exes
 	cp result/bin/haskell-godaddy-exe godaddy
 	chmod 755 godaddy
 	patchelf --set-interpreter /lib/ld-linux-x86-64.so.2 godaddy
@@ -12,9 +19,6 @@ build-release:
 
 test:
 	stack --nix test
-
-run:
-	stack --nix run
 
 hoogle-build:
 	stack --nix build --haddock --haddock-deps
