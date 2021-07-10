@@ -1,3 +1,6 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeApplications #-}
+
 -- |
 module Args
   ( Args (..),
@@ -56,6 +59,19 @@ data Command
   = ConfigHelp
   | Domains
   | Records Domain
+  | Create
+      { createDomain :: Domain,
+        createType :: Godaddy.RecordType,
+        createName :: Text,
+        createData :: Text,
+        createPort :: Maybe Int,
+        createPriority :: Maybe Int,
+        createProtocol :: Maybe Text,
+        createService :: Maybe Text,
+        createTtl :: Maybe Int,
+        createWeight :: Maybe Int
+      }
+  | Delete Domain Godaddy.RecordType Text
   | Servers Domain
   | ServerAdd Domain (NonEmpty ServerIP)
   | ServerDelete Domain (NonEmpty Server)
@@ -83,6 +99,19 @@ credentialsParser =
       (Opts.maybeReader Godaddy.parseApiKey)
       (Opts.long "credentials" <> Opts.metavar "KEY:SECRET")
 
+recordTypeParser :: Opts.ReadM Godaddy.RecordType
+recordTypeParser =
+  Opts.str @String >>= \case
+    "A" -> return Godaddy.A
+    "AAAA" -> return Godaddy.AAAA
+    "CNAME" -> return Godaddy.CNAME
+    "MX" -> return Godaddy.MX
+    "NS" -> return Godaddy.NS
+    "SOA" -> return Godaddy.SOA
+    "SRV" -> return Godaddy.SRV
+    "TXT" -> return Godaddy.TXT
+    _ -> Opts.readerError "Accepted types are: A, AAAA, CNAME, MX, NS, SOA, SRV and TXT."
+
 commandParser :: Opts.Parser Command
 commandParser =
   Opts.hsubparser
@@ -94,6 +123,33 @@ commandParser =
           ( Opts.info
               (Records <$> domainParser)
               (Opts.progDesc "List all records of a domain")
+          )
+        <> Opts.command
+          "create"
+          ( Opts.info
+              ( Create
+                  <$> domainParser
+                    <*> Opts.argument recordTypeParser (Opts.metavar "RECORDTYPE")
+                    <*> Opts.argument Opts.str (Opts.metavar "NAME")
+                    <*> Opts.argument Opts.str (Opts.metavar "DATA")
+                    <*> Opts.optional (Opts.option Opts.auto (Opts.long "port" <> Opts.metavar "PORT"))
+                    <*> Opts.optional (Opts.option Opts.auto (Opts.long "priority" <> Opts.metavar "PRIORITY"))
+                    <*> Opts.optional (Opts.option Opts.auto (Opts.long "protocol" <> Opts.metavar "PROTOCOL"))
+                    <*> Opts.optional (Opts.option Opts.auto (Opts.long "service" <> Opts.metavar "SERVICE"))
+                    <*> Opts.optional (Opts.option Opts.auto (Opts.long "ttl" <> Opts.metavar "TTL"))
+                    <*> Opts.optional (Opts.option Opts.auto (Opts.long "weight" <> Opts.metavar "WEIGHT"))
+              )
+              (Opts.progDesc "Create a record on a domain")
+          )
+        <> Opts.command
+          "delete"
+          ( Opts.info
+              ( Delete
+                  <$> domainParser
+                    <*> Opts.argument recordTypeParser (Opts.metavar "RECORDTYPE")
+                    <*> Opts.argument Opts.str (Opts.metavar "NAME")
+              )
+              (Opts.progDesc "Delete a record by type and name from a domain")
           )
         <> Opts.commandGroup "General commands:"
     )

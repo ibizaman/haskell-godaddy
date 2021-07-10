@@ -60,6 +60,36 @@ main = do
       run endpoint (getDomainsQuery apiKey) >>= display
     command endpoint apiKey (Args.Records domain) =
       run endpoint (getRecordsQuery apiKey $ Args.unDomain domain) >>= display
+    command endpoint apiKey Args.Create {..} =
+      run
+        endpoint
+        ( addRecordsQuery
+            apiKey
+            (Args.unDomain createDomain)
+            [ Godaddy.Record
+                { recordName = createName,
+                  recordData = createData,
+                  recordType = createType,
+                  recordPort = createPort,
+                  recordPriority = createPriority,
+                  recordProtocol = createProtocol,
+                  recordService = createService,
+                  recordTtl = createTtl,
+                  recordWeight = createWeight
+                }
+            ]
+        )
+        >>= displayErr
+    command endpoint apiKey (Args.Delete domain recordType name) =
+      run
+        endpoint
+        ( deleteRecordsWithTypeNameQuery
+            apiKey
+            (Args.unDomain domain)
+            recordType
+            name
+        )
+        >>= displayErr
     command endpoint apiKey (Args.Servers domain) =
       run
         endpoint
