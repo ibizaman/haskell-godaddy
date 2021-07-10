@@ -209,7 +209,9 @@ commandParser =
                           <> P.hardline
                           <> "    --manual-auth-hook godaddy-certbot-dns01-auth-hook \\"
                           <> P.hardline
-                          <> "    --manual-cleanup-hook godaddy-certbot-dns01-cleanup-hook"
+                          <> "    --manual-cleanup-hook godaddy-certbot-dns01-cleanup-hook \\"
+                          <> P.hardline
+                          <> "    -d DOMAIN"
                     )
               )
           )

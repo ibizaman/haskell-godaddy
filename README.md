@@ -5,12 +5,17 @@ by Godaddy. It also provides a library that can be integrated into
 other projects. It uses [Godaddy's
 API](https://developer.godaddy.com/getstarted).
 
+On top of providing means to create and delete records on Godaddy,
+this tool provides dyndns functionality and Let's Encrypt DNS01
+challenge hooks.
+
 
 # Example Usage
 
-## List existing records
+We start with usage examples but before all this can work, you need to
+set your credentials as environment variables. See the next section.
 
-List all domains:
+## List all domains
 
 ```bash
 $ godaddy domains
@@ -28,7 +33,97 @@ Domains:
   RenewAuto: True
 ```
 
-List all servers under `example2.com` domain:
+## List all records of a domain
+
+```bash
+godaddy records example2.com
+Records:
+  mycname1
+  Type:     CNAME
+  Data:     "mycname1.example2.com"
+  TTL:      3600
+
+  mg
+  Type:     MX
+  Data:     "mxb.mailgun.org"
+  Priority: 10
+  TTL:      3600
+
+  mg
+  Type:     MX
+  Data:     "mxa.mailgun.org"
+  Priority: 10
+  TTL:      3600
+
+  mg
+  Type:     TXT
+  Data:     "v=spf1 include:mailgun.org ~all"
+  TTL:      360
+```
+
+## Create a record of a domain
+
+```bash
+$ godaddy create --help
+Usage: godaddy create DOMAIN RECORDTYPE NAME DATA [--port PORT]
+                      [--priority PRIORITY] [--protocol PROTOCOL]
+                      [--service SERVICE] [--ttl TTL]
+                      [--weight WEIGHT]
+
+$ godaddy create example2.com TXT mytxt blahblah
+
+$ godaddy records example2.com
+Records:
+[...]
+  mytxt
+  Type:     TXT
+  Data:     "blahblah"
+  TTL:      600
+```
+
+## Delete a record of a domain
+
+```bash
+$ godaddy delete example2.com TXT mytxt
+```
+
+
+## DynDns
+Assuming your Godaddy's domain is `mydomain.com`:
+
+Serve a domain `mydomain.com` under a dynamic IP:
+
+```bash
+$ godaddy dyndns example2.com DOMAIN
+```
+
+This will automatically query the external IP through ipify. A more
+manual way would be:
+
+```bash
+$ ip="$(curl https://api.ipify.org)"
+$ godaddy servers replace DOMAIN @
+```
+
+
+## Certbot
+
+```bash
+$ certbot certonly --preferred-challenges=dns --manual -n \
+    --manual-auth-hook godaddy-certbot-dns01-auth-hook \
+    --manual-cleanup-hook godaddy-certbot-dns01-cleanup-hook \
+	-d example2.com
+```
+
+# Opinionated commands
+
+This project provides opinionated commands. Everything can be done of
+course with the commands provided above, but if you want something a
+bit more specific, continue reading.
+
+The following commands assume a server is a physical machine
+accessible through an IP address. This definition is mapped exactly to
+an A record. Listing servers is equivalent to listing A records:
 
 ```bash
 $ godaddy servers list example2.com
@@ -53,10 +148,6 @@ Records:
   Data:     "192.168.1.21"
   TTL:      600
 ```
-
-This project is opinionated. It assumes a server is a physical machine
-accessible through an IP address. This definition is mapped exactly to
-an A record. Listing servers is equivalent to listing A records.
 
 List all subdomains pointing to `example2.com`:
 
@@ -229,7 +320,6 @@ Got an error from Godaddy: [422] "Unprocessable Entity":
 ```
 
 Deleting a nonexistent record does not produce an error.
-
 
 # Set Credentials
 

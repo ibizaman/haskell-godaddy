@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# See README.md section certbot for more info about this script.
+
+godaddy certbot dns01 cleanup "$CERTBOT_DOMAIN"
