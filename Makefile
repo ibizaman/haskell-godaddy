@@ -33,7 +33,8 @@ cachix-enable:
 	cachix use ibizaman
 
 cachix-push:
-	nix-build | cachix push ibizaman
+	nix-build -A haskell-godaddy.components.library | cachix push ibizaman
+	nix-build -A haskell-godaddy.components.exes | cachix push ibizaman
 	nix-build shell.nix | cachix push ibizaman
 
 hackage-prepare:
