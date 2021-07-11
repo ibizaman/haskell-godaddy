@@ -1,5 +1,8 @@
 .PHONY: aur aur-push aur-make build build-release test run hoogle-build hoogle-generate hoogle-serve cachix-enable cachix-push
 
+haskell-godaddy.cabal: package.yaml
+	hpack package.yaml
+
 build:
 	stack --nix build
 
@@ -37,7 +40,7 @@ cachix-push:
 	nix-build -A haskell-godaddy.components.exes | cachix push ibizaman
 	nix-build shell.nix | cachix push ibizaman
 
-hackage-prepare:
+hackage-prepare: haskell-godaddy.cabal
 	nix-shell --run "cabal check" || exit 1
 	stack sdist --tar-dir . --tar-dir .
 
