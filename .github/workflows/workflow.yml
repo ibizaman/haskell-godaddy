@@ -12,7 +12,10 @@ jobs:
               with:
                   name: ibizaman
                   authToken: "${{ secrets.CACHIX_IBIZAMAN_AUTHTOKEN }}"
-
+            - name: add haskell.nix pub keys
+              run: sed -i '/^trusted-public-keys =/ s/$/ hydra.iohk.io:f\/Ea+s+dFdN+3Y\/G+FDgSq+a5NEWhJGzdjvKNGv0\/EQ=/' ~/.config/nix/nix.conf
+            - name: add haskell.nix substituters
+              run: sed -i '/^substituters =/ s/$/ https:\/\/hydra.iohk.io/' ~/.config/nix/nix.conf
             - run: nix-build shell.nix
             # TODO: make this work
             # - run: nix-shell --pure --run haskell-language-server-wrapper
@@ -27,6 +30,10 @@ jobs:
                   name: ibizaman
                   authToken: "${{ secrets.CACHIX_IBIZAMAN_AUTHTOKEN }}"
 
+            - name: add haskell.nix pub keys
+              run: sed -i '/^trusted-public-keys =/ s/$/ hydra.iohk.io:f\/Ea+s+dFdN+3Y\/G+FDgSq+a5NEWhJGzdjvKNGv0\/EQ=/' ~/.config/nix/nix.conf
+            - name: add haskell.nix substituters
+              run: sed -i '/^substituters =/ s/$/ https:\/\/hydra.iohk.io/' ~/.config/nix/nix.conf
             - run: make build-release
             - uses: actions/upload-artifact@v2
               with:
