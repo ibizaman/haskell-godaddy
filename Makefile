@@ -52,4 +52,5 @@ aur-push:
 	git submodule foreach 'git push'
 
 aur-make:
-	cd aur && rm godaddy.zip && makepkg -f
+	-rm aur/godaddy.zip
+	cd aur && makepkg -f
