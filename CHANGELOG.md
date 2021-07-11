@@ -1,3 +1,8 @@
+0.0.0.5 (2021/07/10)
+====================
+* Add commands to create and delete any record
+* Add support for Let's Encrypt DNS01 challenge through certbot
+
 0.0.0.4 (2021/03/01)
 ====================
 * Add dyndns command
