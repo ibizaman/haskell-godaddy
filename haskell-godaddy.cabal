@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           haskell-godaddy
-version:        0.0.0.5
+version:        0.0.0.6
 synopsis:       Command-line interface and library to configure Godaddy domain records
 description:    Please see the README on GitHub at <https://github.com/ibizaman/haskell-godaddy#readme>
 category:       DNS,Executable,Godaddy

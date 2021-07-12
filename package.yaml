@@ -1,5 +1,5 @@
 name: haskell-godaddy
-version: 0.0.0.5
+version: 0.0.0.6
 synopsis: "Command-line interface and library to configure Godaddy domain records"
 github: "ibizaman/haskell-godaddy"
 license: BSD3

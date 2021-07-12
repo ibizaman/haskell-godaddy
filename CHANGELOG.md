@@ -1,3 +1,7 @@
+0.0.0.6 (2021/07/11)
+====================
+* Fix hooks for Let's Encrypt DNS01 challenge through certbot
+
 0.0.0.5 (2021/07/10)
 ====================
 * Add commands to create and delete any record
