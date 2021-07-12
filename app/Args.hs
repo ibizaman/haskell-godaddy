@@ -10,8 +10,6 @@ module Args
     IP (..),
     ServerIP (..),
     Subdomain (..),
-    CertbotHook (..),
-    AuthSecret (..),
     getArgs,
   )
 where
@@ -51,10 +49,6 @@ newtype Subdomain = Subdomain {unSubdomain :: Text}
 
 newtype AuthSecret = AuthSecret {unAuthSecret :: Text}
 
-data CertbotHook
-  = CertbotDNS01AuthHook AuthSecret
-  | CertbotDNS01CleanupHook
-
 data Command
   = ConfigHelp
   | Domains
@@ -80,7 +74,6 @@ data Command
   | SubdomainAdd Domain Server (NonEmpty Subdomain)
   | SubdomainDelete Domain Server (NonEmpty Subdomain)
   | Dyndns Domain (NonEmpty Server)
-  | Certbot CertbotHook Domain
 
 argsParser :: Opts.Parser Args
 argsParser = Args <$> configFileParser <*> credentialsParser <*> commandParser
@@ -194,28 +187,6 @@ commandParser =
                 (Opts.progDesc "Update servers with current external IP")
             )
           <> Opts.commandGroup "Opinionated commands:"
-      )
-    <|> Opts.hsubparser
-      ( Opts.command
-          "certbot"
-          ( Opts.info
-              certbotParser
-              ( Opts.progDesc "Helpers to retrieve letsencrypt certificates with certbot."
-                  <> Opts.footerDoc
-                    ( Just $
-                        "For DNS-01 challaenge: "
-                          <> P.hardline
-                          <> "  certbot certonly [--test-cert] [--dry-run] --preferred-challenges=dns --manual -n \\"
-                          <> P.hardline
-                          <> "    --manual-auth-hook godaddy-certbot-dns01-auth-hook \\"
-                          <> P.hardline
-                          <> "    --manual-cleanup-hook godaddy-certbot-dns01-cleanup-hook \\"
-                          <> P.hardline
-                          <> "    -d DOMAIN"
-                    )
-              )
-          )
-          <> Opts.commandGroup "Hooks:"
       )
     <|> Opts.hsubparser
       ( Opts.command
@@ -375,40 +346,6 @@ subdomainsParser =
 authSecretParser :: Opts.Parser AuthSecret
 authSecretParser =
   AuthSecret <$> Opts.argument Opts.str (Opts.metavar "AUTHSECRET")
-
-certbotParser :: Opts.Parser Command
-certbotParser =
-  Opts.hsubparser
-    ( Opts.command
-        "dns01"
-        ( Opts.info
-            certbotDNS01Parser
-            ( Opts.progDesc
-                "Hooks for the DNS01 letsencrypt challenge."
-            )
-        )
-    )
-
-certbotDNS01Parser :: Opts.Parser Command
-certbotDNS01Parser =
-  Opts.hsubparser
-    ( Opts.command
-        "auth"
-        ( Opts.info
-            (Certbot <$> (CertbotDNS01AuthHook <$> authSecretParser) <*> domainParser)
-            ( Opts.progDesc
-                "Auth hook parser for DNS01 letsencrypt challenge."
-            )
-        )
-        <> Opts.command
-          "cleanup"
-          ( Opts.info
-              (Certbot CertbotDNS01CleanupHook <$> domainParser)
-              ( Opts.progDesc
-                  "Auth hook parser for DNS01 letsencrypt challenge."
-              )
-          )
-    )
 
 dyndnsParser :: Opts.Parser Command
 dyndnsParser =

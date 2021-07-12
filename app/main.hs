@@ -230,36 +230,6 @@ main = do
                       <> "': "
                 )
                 e
-    command endpoint apiKey (Args.Certbot (Args.CertbotDNS01AuthHook authSecret) domain) =
-      run
-        endpoint
-        ( addRecordsQuery
-            apiKey
-            (Args.unDomain domain)
-            [ Godaddy.Record
-                { recordName = "_acme-challenge." <> Args.unDomain domain,
-                  recordData = Args.unAuthSecret authSecret,
-                  recordType = Godaddy.TXT,
-                  recordPort = Nothing,
-                  recordPriority = Nothing,
-                  recordProtocol = Nothing,
-                  recordService = Nothing,
-                  recordTtl = Nothing,
-                  recordWeight = Nothing
-                }
-            ]
-        )
-        >>= displayErr
-    command endpoint apiKey (Args.Certbot Args.CertbotDNS01CleanupHook domain) =
-      run
-        endpoint
-        ( deleteRecordsWithTypeNameQuery
-            apiKey
-            (Args.unDomain domain)
-            Godaddy.TXT
-            ("_acme-challenge." <> Args.unDomain domain)
-        )
-        >>= displayErr
 
 getDomainsQuery :: Godaddy.APIKey -> SC.ClientM [Godaddy.Domain]
 getDomainsQuery apiKey = do

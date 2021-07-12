@@ -2,4 +2,13 @@
 
 # See README.md section certbot for more info about this script.
 
-godaddy certbot dns01 cleanup "$CERTBOT_VALIDATION" "$CERTBOT_DOMAIN"
+godaddy create "$CERTBOT_DOMAIN"  TXT _acme-challenge "$CERTBOT_VALIDATION"
+
+for i in $(seq 1 600); do
+	if [ "$(drill _acme-challenge."$CERTBOT_DOMAIN" @8.8.8.8 TXT | grep -A1 "ANSWER SECTION" | tail -n1 | cut -f5)" = "\"$CERTBOT_VALIDATION\"" ]; then
+		exit 0
+	fi
+	sleep 1
+done
+
+exit 1

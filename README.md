@@ -6,8 +6,8 @@ other projects. It uses [Godaddy's
 API](https://developer.godaddy.com/getstarted).
 
 On top of providing means to create and delete records on Godaddy,
-this tool provides dyndns functionality and Let's Encrypt DNS01
-challenge hooks.
+this tool provides dyndns functionality and can help handling Let's
+Encrypt DNS01 challenge.
 
 
 # Example Usage
@@ -106,7 +106,10 @@ $ godaddy servers replace DOMAIN @
 ```
 
 
-## Certbot
+## Let's Encrypt DNS01 challenge
+
+Retrieve a wildcard certificate on the `*.example2.com` subdomain and
+`example2.com` domain.
 
 ```bash
 $ certbot certonly --preferred-challenges=dns --manual -n \
